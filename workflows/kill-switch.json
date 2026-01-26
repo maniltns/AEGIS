@@ -1,0 +1,122 @@
+{
+    "name": "AEGIS - Kill Switch Check",
+    "nodes": [
+        {
+            "parameters": {
+                "inputSource": "jsonExample",
+                "jsonExample": "{}"
+            },
+            "name": "Trigger",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -200,
+                0
+            ],
+            "id": "trigger-ks"
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "key": "gov:killswitch"
+            },
+            "name": "Get Kill Switch",
+            "type": "n8n-nodes-base.redis",
+            "typeVersion": 1,
+            "position": [
+                0,
+                -50
+            ],
+            "id": "redis-ks",
+            "credentials": {
+                "redis": {
+                    "id": "REDIS_CREDENTIAL_ID",
+                    "name": "AEGIS Redis"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "key": "gov:mode"
+            },
+            "name": "Get Mode",
+            "type": "n8n-nodes-base.redis",
+            "typeVersion": 1,
+            "position": [
+                0,
+                100
+            ],
+            "id": "redis-mode",
+            "credentials": {
+                "redis": {
+                    "id": "REDIS_CREDENTIAL_ID",
+                    "name": "AEGIS Redis"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// AEGIS Kill Switch & Governance Evaluator\n// Glass Box: All governance decisions are logged\n\nconst killswitch = $('Get Kill Switch').first().json.value;\nconst mode = $('Get Mode').first().json.value || 'observe';\n\n// Kill switch: 'true' means system is ENABLED\n// Kill switch: 'false' means EMERGENCY STOP\nconst systemEnabled = killswitch === 'true' || killswitch === true;\n\nreturn {\n  json: {\n    killswitch_active: !systemEnabled,\n    governance_mode: mode,\n    can_write: systemEnabled && (mode === 'assist' || mode === 'execute'),\n    can_notify: systemEnabled,\n    reason: !systemEnabled \n      ? 'Kill switch activated - OBSERVE only' \n      : `Mode: ${mode}`,\n    timestamp: new Date().toISOString()\n  }\n};"
+            },
+            "name": "Evaluate Governance",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                25
+            ],
+            "id": "eval-ks"
+        }
+    ],
+    "connections": {
+        "Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Get Kill Switch",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Get Mode",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Kill Switch": {
+            "main": [
+                [
+                    {
+                        "node": "Evaluate Governance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Mode": {
+            "main": [
+                [
+                    {
+                        "node": "Evaluate Governance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        "AEGIS",
+        "Governance",
+        "Kill Switch"
+    ]
+}

@@ -1,0 +1,488 @@
+{
+    "name": "AEGIS - Master Triage v1.1",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 5
+                        }
+                    ]
+                }
+            },
+            "name": "Every 5 Mins (POC)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -800,
+                200
+            ],
+            "id": "sched-001",
+            "notes": "POC: Polling. Production: Replace with ServiceNow Webhook"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "getAll",
+                "options": {
+                    "sysparm_query": "active=true^stateIN1,2^assigned_toISEMPTY^assignment_group.nameINL1-GSS-ENA-DACH Technical Support,L2-Network Support,L3-T4H Global Opera",
+                    "sysparm_limit": "20"
+                }
+            },
+            "name": "Fetch Unassigned Incidents",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "fetch-001",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "Process Each",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 2,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "split-001"
+        },
+        {
+            "parameters": {
+                "workflowId": "STORM_SHIELD_WORKFLOW_ID",
+                "options": {}
+            },
+            "name": "🛡️ GUARDIAN - Storm Shield",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "guardian-001"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.action }}",
+                            "operation": "equal",
+                            "value2": "PASS"
+                        }
+                    ]
+                }
+            },
+            "name": "Storm Check",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                0,
+                200
+            ],
+            "id": "if-storm"
+        },
+        {
+            "parameters": {
+                "workflowId": "KILL_SWITCH_WORKFLOW_ID",
+                "options": {}
+            },
+            "name": "⚖️ ARBITER - Governance",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1,
+            "position": [
+                200,
+                100
+            ],
+            "id": "arbiter-001"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.can_write }}",
+                            "operation": "equal",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Can Write?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                400,
+                100
+            ],
+            "id": "if-write"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "id": "={{ $('Process Each').item.json.caller_id.value }}",
+                "options": {}
+            },
+            "name": "🔍 SCOUT - Get Caller",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                600,
+                0
+            ],
+            "id": "scout-001",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $('Process Each').item.json.short_description }}",
+                "hasOutputParser": true,
+                "options": {
+                    "systemMessage": "You are SHERLOCK, the AEGIS Triage Agent for Accor Hotels.\n\nCONTEXT:\n- Ticket: {{ $('Process Each').item.json.number }}\n- Priority: {{ $('Process Each').item.json.priority }}\n- Assignment Group: {{ $('Process Each').item.json.assignment_group.display_value }}\n- Caller: {{ $('🔍 SCOUT - Get Caller').item.json.name }} (VIP: {{ $('🔍 SCOUT - Get Caller').item.json.vip }})\n- Description: {{ $('Process Each').item.json.short_description }}\n\nINSTRUCTIONS:\n1. Analyze the issue based on the description\n2. If available, use 'search_kb' tool with 2-3 keywords\n3. Provide structured triage assessment\n\nGLASS BOX: You MUST explain your reasoning clearly.\n\nOUTPUT JSON:\n{\n  \"assessment\": \"Technical summary (1-2 sentences)\",\n  \"root_cause\": \"Most likely cause\",\n  \"action\": \"Recommended next step\",\n  \"category\": \"Hardware|Software|Network|Database|Inquiry\",\n  \"subcategory\": \"Specific area\",\n  \"kb_article\": \"URL or null\",\n  \"risk_level\": \"Low|Medium|High\",\n  \"confidence\": 0.0-1.0,\n  \"reasoning\": \"Why I reached this conclusion (Glass Box)\",\n  \"escalation_required\": boolean\n}"
+                }
+            },
+            "name": "🕵️ SHERLOCK - AI Triage",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.6,
+            "position": [
+                800,
+                0
+            ],
+            "id": "sherlock-001"
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o",
+                "options": {
+                    "temperature": 0.1
+                }
+            },
+            "name": "GPT-4o",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                800,
+                200
+            ],
+            "id": "llm-001",
+            "credentials": {
+                "openAiApi": {
+                    "id": "OPENAI_CREDENTIAL_ID",
+                    "name": "OpenAI"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Parse SHERLOCK response and extract JSON\nconst raw = $json.output || '';\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  if (match) {\n    const parsed = JSON.parse(match[0]);\n    return { json: { ...parsed, parse_success: true } };\n  }\n  throw new Error('No JSON found');\n} catch (e) {\n  return {\n    json: {\n      assessment: 'Parse error: ' + raw.substring(0, 100),\n      risk_level: 'Medium',\n      confidence: 0.5,\n      escalation_required: true,\n      parse_success: false\n    }\n  };\n}"
+            },
+            "name": "Parse Response",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                0
+            ],
+            "id": "parse-001"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Process Each').item.json.sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🕵️ SHERLOCK Analysis (AEGIS v1.1):\n\n{{ $json.assessment }}\n\n📋 Details:\n- Root Cause: {{ $json.root_cause }}\n- Action: {{ $json.action }}\n- Category: {{ $json.category }} / {{ $json.subcategory }}\n\n🔍 Glass Box Reasoning:\n{{ $json.reasoning }}\n\n📊 Confidence: {{ Math.round($json.confidence * 100) }}% | Risk: {{ $json.risk_level }}"
+                }
+            },
+            "name": "📝 SCRIBE - Update SNOW",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                -100
+            ],
+            "id": "scribe-001",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.TEAMS_WEBHOOK_URL }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"type\": \"message\",\n  \"attachments\": [{\n    \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n    \"content\": {\n      \"type\": \"AdaptiveCard\",\n      \"version\": \"1.4\",\n      \"body\": [\n        {\"type\": \"TextBlock\", \"text\": \"🕵️ AEGIS: {{ $('Process Each').item.json.number }}\", \"weight\": \"Bolder\", \"size\": \"Medium\"},\n        {\"type\": \"TextBlock\", \"text\": \"{{ $json.assessment }}\", \"wrap\": true},\n        {\"type\": \"FactSet\", \"facts\": [\n          {\"title\": \"Risk\", \"value\": \"{{ $json.risk_level }}\"},\n          {\"title\": \"Confidence\", \"value\": \"{{ Math.round($json.confidence * 100) }}%\"},\n          {\"title\": \"Category\", \"value\": \"{{ $json.category }}\"}\n        ]},\n        {\"type\": \"TextBlock\", \"text\": \"🔍 {{ $json.reasoning }}\", \"wrap\": true, \"size\": \"Small\"}\n      ],\n      \"actions\": [{\"type\": \"Action.OpenUrl\", \"title\": \"View Ticket\", \"url\": \"https://myaccortrain.service-now.com/incident.do?sys_id={{ $('Process Each').item.json.sys_id }}\"}]\n    }\n  }]\n}"
+            },
+            "name": "📢 HERALD - Teams Notify",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1200,
+                100
+            ],
+            "id": "herald-001"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Process Each').item.json.sys_id }}",
+                "updateFields": {
+                    "work_notes": "=⚠️ AEGIS OBSERVE MODE - Analysis logged but no action taken.\nKill switch or governance prevented write operations."
+                }
+            },
+            "name": "Log Observe Mode",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                400,
+                250
+            ],
+            "id": "observe-001",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Process Each').item.json.sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🛡️ GUARDIAN - Storm Shield:\nDuplicate blocked (occurrence #{{ $json.storm_count }} in 15-min window)\nFingerprint: {{ $json.fingerprint }}"
+                }
+            },
+            "name": "Log Storm Block",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                0,
+                350
+            ],
+            "id": "storm-block-001",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Every 5 Mins (POC)": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Unassigned Incidents",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Unassigned Incidents": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Each": {
+            "main": [
+                [
+                    {
+                        "node": "🛡️ GUARDIAN - Storm Shield",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🛡️ GUARDIAN - Storm Shield": {
+            "main": [
+                [
+                    {
+                        "node": "Storm Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Storm Check": {
+            "main": [
+                [
+                    {
+                        "node": "⚖️ ARBITER - Governance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Storm Block",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚖️ ARBITER - Governance": {
+            "main": [
+                [
+                    {
+                        "node": "Can Write?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Can Write?": {
+            "main": [
+                [
+                    {
+                        "node": "🔍 SCOUT - Get Caller",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Observe Mode",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔍 SCOUT - Get Caller": {
+            "main": [
+                [
+                    {
+                        "node": "🕵️ SHERLOCK - AI Triage",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GPT-4o": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "🕵️ SHERLOCK - AI Triage",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🕵️ SHERLOCK - AI Triage": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Response",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Response": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Update SNOW",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "📢 HERALD - Teams Notify",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📢 HERALD - Teams Notify": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Observe Mode": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Log Storm Block": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        "AEGIS",
+        "Master Triage",
+        "L1",
+        "L2",
+        "L3"
+    ]
+}

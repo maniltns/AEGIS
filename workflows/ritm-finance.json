@@ -1,0 +1,199 @@
+{
+    "name": "AEGIS - RITM Finance Approval (Hotel Opera)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 5
+                        }
+                    ]
+                }
+            },
+            "name": "Every 5 Mins",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "sched-ritm"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "getAll",
+                "tableName": "sc_req_item",
+                "options": {
+                    "sysparm_query": "active=true^state=1^cat_item.nameSTARTSWITHPMS Opera^u_finance_approval=pending",
+                    "sysparm_limit": "10"
+                }
+            },
+            "name": "Fetch Opera RITMs",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "fetch-ritm",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "batchSize": 1
+            },
+            "name": "Process Each",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "split-ritm"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Build Finance Approval Teams Card\nconst ritm = $json;\n\nconst card = {\n  type: 'message',\n  attachments: [{\n    contentType: 'application/vnd.microsoft.card.adaptive',\n    content: {\n      type: 'AdaptiveCard',\n      version: '1.4',\n      body: [\n        {\n          type: 'Container',\n          style: 'emphasis',\n          items: [\n            {type: 'TextBlock', text: '💰 Finance Approval Required', weight: 'Bolder', size: 'Large'},\n            {type: 'TextBlock', text: `${ritm.number} | PMS Opera Transaction Code`, isSubtle: true}\n          ]\n        },\n        {\n          type: 'FactSet',\n          facts: [\n            {title: 'Hotel', value: ritm.u_hotel_property || 'Unknown'},\n            {title: 'Requested By', value: ritm.requested_for?.display_value || 'Unknown'},\n            {title: 'Change Type', value: ritm.u_change_type || 'Transaction Code Update'},\n            {title: 'Current Value', value: ritm.u_current_value || 'N/A'},\n            {title: 'New Value', value: ritm.u_new_value || 'N/A'}\n          ]\n        },\n        {type: 'TextBlock', text: '⚠️ Action logged per SOX compliance', color: 'Warning', size: 'Small'}\n      ],\n      actions: [\n        {\n          type: 'Action.Submit',\n          title: '✅ Approve',\n          style: 'positive',\n          data: {action: 'approve', ritm_sys_id: ritm.sys_id, ritm_number: ritm.number}\n        },\n        {\n          type: 'Action.Submit',\n          title: '❌ Reject',\n          style: 'destructive',\n          data: {action: 'reject', ritm_sys_id: ritm.sys_id}\n        }\n      ]\n    }\n  }]\n};\n\nreturn { json: { card, ritm_sys_id: ritm.sys_id, ritm_number: ritm.number } };"
+            },
+            "name": "Build Approval Card",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                0,
+                200
+            ],
+            "id": "build-card"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.TEAMS_WEBHOOK_FINANCE }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify($json.card) }}"
+            },
+            "name": "📢 HERALD - Send to Finance",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                200,
+                200
+            ],
+            "id": "herald-finance"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "update",
+                "tableName": "sc_req_item",
+                "id": "={{ $json.ritm_sys_id }}",
+                "updateFields": {
+                    "u_finance_approval": "sent",
+                    "work_notes": "=📢 HERALD - Finance Approval Request Sent\n\nTeams notification sent to Finance team.\nAwaiting approval for transaction code change."
+                }
+            },
+            "name": "Update RITM - Sent",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                400,
+                200
+            ],
+            "id": "update-sent",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Every 5 Mins": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Opera RITMs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Opera RITMs": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Each": {
+            "main": [
+                [
+                    {
+                        "node": "Build Approval Card",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Approval Card": {
+            "main": [
+                [
+                    {
+                        "node": "📢 HERALD - Send to Finance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📢 HERALD - Send to Finance": {
+            "main": [
+                [
+                    {
+                        "node": "Update RITM - Sent",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update RITM - Sent": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "RITM",
+        "Finance",
+        "Opera"
+    ]
+}

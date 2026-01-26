@@ -1,0 +1,106 @@
+{
+  "name": "AEGIS - Storm Shield",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "jsonExample",
+        "jsonExample": "{\n  \"ci_name\": \"PRINTER-NYC-01\",\n  \"short_description\": \"Paper Jam Error\",\n  \"incident_sys_id\": \"abc123\",\n  \"number\": \"INC0012345\"\n}"
+      },
+      "name": "Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [-400, 0],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "// AEGIS Storm Shield - Fingerprint Generator\n// Creates MD5 hash from CI + error pattern\n\nconst crypto = require('crypto');\n\nconst ci = $json.ci_name || $json.cmdb_ci?.display_value || 'unknown';\nconst desc = $json.short_description || '';\n\n// Normalize: lowercase, remove extra spaces\nconst raw = `${ci}::${desc}`.toLowerCase().trim().replace(/\\s+/g, ' ');\nconst fingerprint = crypto.createHash('md5').update(raw).digest('hex');\n\nreturn {\n  json: {\n    fingerprint: fingerprint,\n    raw_key: raw,\n    incident_sys_id: $json.incident_sys_id || $json.sys_id,\n    number: $json.number,\n    original_data: $json\n  }\n};"
+      },
+      "name": "Generate Fingerprint",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-200, 0],
+      "id": "fingerprint-001"
+    },
+    {
+      "parameters": {
+        "operation": "incr",
+        "key": "=storm:{{ $json.fingerprint }}",
+        "expire": 900
+      },
+      "name": "Redis INCR",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "redis-001",
+      "credentials": {
+        "redis": {
+          "id": "REDIS_CREDENTIAL_ID",
+          "name": "AEGIS Redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.value }}",
+              "operation": "equal",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "name": "First Occurrence?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [200, 0],
+      "id": "if-001"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// PASS - First occurrence in 15-minute window\nconst input = $('Generate Fingerprint').first().json;\n\nreturn {\n  json: {\n    action: 'PASS',\n    reason: 'First occurrence in 15-min window',\n    fingerprint: input.fingerprint,\n    incident_sys_id: input.incident_sys_id,\n    number: input.number,\n    original_data: input.original_data,\n    storm_count: 1,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "PASS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, -100],
+      "id": "pass-001"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// BLOCK - Duplicate detected in 15-minute window\nconst input = $('Generate Fingerprint').first().json;\nconst count = $('Redis INCR').first().json.value;\n\nreturn {\n  json: {\n    action: 'BLOCK',\n    reason: `Duplicate #${count} in 15-min window`,\n    fingerprint: input.fingerprint,\n    incident_sys_id: input.incident_sys_id,\n    number: input.number,\n    storm_count: count,\n    suppressed: true,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "name": "BLOCK",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 100],
+      "id": "block-001"
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [[{"node": "Generate Fingerprint", "type": "main", "index": 0}]]
+    },
+    "Generate Fingerprint": {
+      "main": [[{"node": "Redis INCR", "type": "main", "index": 0}]]
+    },
+    "Redis INCR": {
+      "main": [[{"node": "First Occurrence?", "type": "main", "index": 0}]]
+    },
+    "First Occurrence?": {
+      "main": [
+        [{"node": "PASS", "type": "main", "index": 0}],
+        [{"node": "BLOCK", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["AEGIS", "Storm Shield", "Deduplication"]
+}

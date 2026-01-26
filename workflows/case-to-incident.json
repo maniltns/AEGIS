@@ -1,0 +1,348 @@
+{
+    "name": "AEGIS - Case to Incident (BRIDGE)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 5
+                        }
+                    ]
+                }
+            },
+            "name": "Every 5 Mins",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "sched-case"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "getAll",
+                "tableName": "sn_customerservice_case",
+                "options": {
+                    "sysparm_query": "active=true^state=1^u_requires_incident=true^u_incident_createdISEMPTY",
+                    "sysparm_limit": "20"
+                }
+            },
+            "name": "Fetch Cases Needing INC",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "fetch-case",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "batchSize": 1
+            },
+            "name": "Process Each",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "split-case"
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.short_description }}\n\n{{ $json.description }}",
+                "hasOutputParser": true,
+                "options": {
+                    "systemMessage": "You are SHERLOCK, the AEGIS Case Classifier for Accor Hotels.\n\nAnalyze this customer case and determine:\n1. Should this become an Incident? (technical issue requiring IT support vs inquiry)\n2. What priority should the incident be? (1-4)\n3. Which assignment group should handle it?\n\nGLASS BOX: Explain your classification reasoning.\n\nOUTPUT JSON:\n{\n  \"create_incident\": boolean,\n  \"priority\": \"1|2|3|4\",\n  \"assignment_group\": \"L1-GSS-ENA-DACH Technical Support|L2-Network Support|L3-T4H Global Opera\",\n  \"short_description\": \"Incident title (concise)\",\n  \"category\": \"Hardware|Software|Network|Database|Inquiry\",\n  \"subcategory\": \"Specific area\",\n  \"reasoning\": \"Why I made this classification (Glass Box)\"\n}"
+                }
+            },
+            "name": "🕵️ SHERLOCK - Classify Case",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.6,
+            "position": [
+                0,
+                200
+            ],
+            "id": "sherlock-case"
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0
+                }
+            },
+            "name": "GPT-4o-mini",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                0,
+                400
+            ],
+            "id": "llm-case",
+            "credentials": {
+                "openAiApi": {
+                    "id": "OPENAI_CREDENTIAL_ID",
+                    "name": "OpenAI"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const raw = $json.output || '';\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  if (match) return { json: JSON.parse(match[0]) };\n  throw new Error('No JSON');\n} catch (e) {\n  return { json: { create_incident: false, reasoning: 'Parse error' } };\n}"
+            },
+            "name": "Parse",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                200
+            ],
+            "id": "parse-case"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.create_incident }}",
+                            "operation": "equal",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Create INC?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                400,
+                200
+            ],
+            "id": "if-create"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "create",
+                "options": {
+                    "short_description": "={{ $json.short_description }}",
+                    "priority": "={{ $json.priority }}",
+                    "assignment_group": "={{ $json.assignment_group }}",
+                    "category": "={{ $json.category }}",
+                    "subcategory": "={{ $json.subcategory }}",
+                    "work_notes": "=🌉 BRIDGE - Created from Case\n\nOriginal Case: {{ $('Process Each').item.json.number }}\n\n🔍 SHERLOCK Classification:\n{{ $json.reasoning }}"
+                }
+            },
+            "name": "🌉 BRIDGE - Create Incident",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                600,
+                100
+            ],
+            "id": "create-inc",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "update",
+                "tableName": "sn_customerservice_case",
+                "id": "={{ $('Process Each').item.json.sys_id }}",
+                "updateFields": {
+                    "u_incident_created": "={{ $json.sys_id }}",
+                    "work_notes": "=🌉 BRIDGE - Incident Created\n\nNew Incident: {{ $json.number }}\n\n🔍 Classification:\n{{ $('Parse').item.json.reasoning }}"
+                }
+            },
+            "name": "Link Case to Incident",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                800,
+                100
+            ],
+            "id": "link-case",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "update",
+                "tableName": "sn_customerservice_case",
+                "id": "={{ $('Process Each').item.json.sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🕵️ SHERLOCK - No Incident Needed\n\nThis case was classified as an inquiry, not requiring technical incident.\n\n🔍 Reasoning:\n{{ $json.reasoning }}"
+                }
+            },
+            "name": "Update Case - No INC",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                600,
+                300
+            ],
+            "id": "no-inc",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Every 5 Mins": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Cases Needing INC",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Cases Needing INC": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Process Each": {
+            "main": [
+                [
+                    {
+                        "node": "🕵️ SHERLOCK - Classify Case",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "GPT-4o-mini": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "🕵️ SHERLOCK - Classify Case",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🕵️ SHERLOCK - Classify Case": {
+            "main": [
+                [
+                    {
+                        "node": "Parse",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse": {
+            "main": [
+                [
+                    {
+                        "node": "Create INC?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create INC?": {
+            "main": [
+                [
+                    {
+                        "node": "🌉 BRIDGE - Create Incident",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Update Case - No INC",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🌉 BRIDGE - Create Incident": {
+            "main": [
+                [
+                    {
+                        "node": "Link Case to Incident",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Link Case to Incident": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Update Case - No INC": {
+            "main": [
+                [
+                    {
+                        "node": "Process Each",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "BRIDGE",
+        "Case to Incident"
+    ]
+}
