@@ -1,0 +1,119 @@
+{
+    "name": "AEGIS - KB Search Tool",
+    "nodes": [
+        {
+            "parameters": {
+                "inputSource": "jsonExample",
+                "jsonExample": "{\n  \"query\": \"printer paper jam error\",\n  \"incident_number\": \"INC0012345\"\n}"
+            },
+            "name": "Trigger",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "trigger-kb"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Extract keywords from query for KB search\nconst query = $json.query || '';\n\n// Remove common stop words and extract key terms\nconst stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'not', 'working', 'error', 'issue', 'problem'];\nconst keywords = query\n  .toLowerCase()\n  .replace(/[^a-z0-9\\s]/g, '')\n  .split(/\\s+/)\n  .filter(w => w.length > 2 && !stopWords.includes(w))\n  .slice(0, 3)\n  .join(' ');\n\nreturn { json: { keywords, original_query: query, incident_number: $json.incident_number } };"
+            },
+            "name": "Extract Keywords",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "keywords-kb"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "getAll",
+                "tableName": "kb_knowledge",
+                "options": {
+                    "sysparm_query": "=workflow_stateIN2,published^123TEXTQUERYactivetrue^active=true^123TEXTQUERY={{ $json.keywords }}",
+                    "sysparm_fields": "sys_id,number,short_description,text,u_category,u_subcategory,sys_view_count",
+                    "sysparm_limit": "5"
+                }
+            },
+            "name": "Search KB Articles",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                0,
+                200
+            ],
+            "id": "search-kb",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Format KB results for SHERLOCK\nconst results = $input.all();\nconst keywords = $('Extract Keywords').first().json.keywords;\n\nif (!results || results.length === 0 || !results[0].json.result) {\n  return {\n    json: {\n      found: false,\n      count: 0,\n      keywords: keywords,\n      articles: [],\n      message: 'No KB articles found for: ' + keywords\n    }\n  };\n}\n\nconst articles = results[0].json.result.map(kb => ({\n  number: kb.number,\n  title: kb.short_description,\n  url: `https://myaccortrain.service-now.com/kb_view.do?sysparm_article=${kb.number}`,\n  category: kb.u_category || 'General',\n  views: kb.sys_view_count || 0,\n  excerpt: (kb.text || '').substring(0, 200).replace(/<[^>]*>/g, '') + '...'\n}));\n\n// Sort by view count (popularity)\narticles.sort((a, b) => b.views - a.views);\n\nreturn {\n  json: {\n    found: true,\n    count: articles.length,\n    keywords: keywords,\n    top_article: articles[0] || null,\n    articles: articles,\n    message: `Found ${articles.length} KB articles for: ${keywords}`\n  }\n};"
+            },
+            "name": "Format Results",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                200
+            ],
+            "id": "format-kb"
+        }
+    ],
+    "connections": {
+        "Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Extract Keywords",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extract Keywords": {
+            "main": [
+                [
+                    {
+                        "node": "Search KB Articles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Search KB Articles": {
+            "main": [
+                [
+                    {
+                        "node": "Format Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "staticData": null,
+    "tags": [
+        "AEGIS",
+        "KB",
+        "Knowledge Base",
+        "SHERLOCK"
+    ]
+}

@@ -6,10 +6,19 @@
 
 ---
 
+## 📚 Documentation
+
+| Document | Location |
+|----------|----------|
+| **Implementation Plan** | [docs/implementation_plan.md](docs/implementation_plan.md) |
+| **Demo Script** | [docs/demo-script.md](docs/demo-script.md) |
+
+---
+
 ## 🚀 Quick Start
 
 ```bash
-# 1. Clone and navigate
+# 1. Navigate to project
 cd d:\AI-Ops\AISwarnOps
 
 # 2. Create environment file
@@ -21,13 +30,14 @@ cd docker
 docker-compose up -d
 
 # 4. Initialize Redis governance
-docker exec aegis-redis sh /scripts/init-redis.sh
+docker exec aegis-redis redis-cli SET gov:killswitch true
+docker exec aegis-redis redis-cli SET gov:mode assist
 
 # 5. Access n8n
 # Open http://localhost:5678
 # Login: admin / aegis2026
 
-# 6. Import workflows
+# 6. Import workflows (6 total)
 # Import all JSON files from /workflows folder
 ```
 
@@ -39,13 +49,17 @@ docker exec aegis-redis sh /scripts/init-redis.sh
 aegis/
 ├── docker/
 │   ├── docker-compose.yml      # Redis Stack + n8n
-│   └── init-redis.sh           # Governance key initialization
+│   └── init-redis.sh           # Governance key init
 ├── workflows/
 │   ├── storm-shield.json       # 🛡️ GUARDIAN - Deduplication
 │   ├── kill-switch.json        # ⚖️ ARBITER - Governance
+│   ├── kb-search.json          # 📚 KB Lookup for SHERLOCK
 │   ├── master-triage.json      # Full triage pipeline
 │   ├── case-to-incident.json   # 🌉 BRIDGE - Case conversion
 │   └── ritm-finance.json       # 💰 Hotel Finance approval
+├── docs/
+│   ├── implementation_plan.md  # Full project plan
+│   └── demo-script.md          # Workshop demo script
 └── .env.example                # Environment template
 ```
 
@@ -53,23 +67,23 @@ aegis/
 
 ## 🤖 Agent Roster
 
-| Agent | Icon | Role |
-|-------|------|------|
-| GUARDIAN | 🛡️ | Storm Shield (Deduplication) |
-| SCOUT | 🔍 | Context Enrichment |
-| SHERLOCK | 🕵️ | RCA & Triage |
-| ROUTER | 🚦 | Assignment |
-| ARBITER | ⚖️ | Governance |
-| HERALD | 📢 | Notifications |
-| SCRIBE | 📝 | Audit Logging |
-| BRIDGE | 🌉 | Case→Incident |
-| JANITOR | 🧹 | Auto-Remediation |
+| Agent | Icon | Role | Workflow |
+|-------|------|------|----------|
+| GUARDIAN | 🛡️ | Storm Shield | storm-shield.json |
+| SCOUT | 🔍 | Context Enrichment | master-triage.json |
+| SHERLOCK | 🕵️ | RCA & Triage | master-triage.json |
+| ROUTER | 🚦 | Assignment | master-triage.json |
+| ARBITER | ⚖️ | Governance | kill-switch.json |
+| HERALD | 📢 | Notifications | master-triage.json |
+| SCRIBE | 📝 | Audit Logging | master-triage.json |
+| BRIDGE | 🌉 | Case→Incident | case-to-incident.json |
+| JANITOR | 🧹 | Auto-Remediation | *Phase 2* |
 
 ---
 
 ## 🔧 Configuration
 
-### Redis Keys (Governance)
+### Redis Governance Keys
 
 ```bash
 # Kill Switch
@@ -77,17 +91,22 @@ SET gov:killswitch true   # System enabled
 SET gov:killswitch false  # EMERGENCY STOP
 
 # Mode
-SET gov:mode observe   # Log only, no writes
+SET gov:mode observe   # Log only
 SET gov:mode assist    # Write + human review
 SET gov:mode execute   # Autonomous (future)
 ```
 
-### Credential IDs
+---
 
-After importing workflows, update credential IDs:
-- `REDIS_CREDENTIAL_ID` → your Redis credential
-- `SNOW_CREDENTIAL_ID` → ServiceNow Accor Train  
-- `OPENAI_CREDENTIAL_ID` → OpenAI API key
+## 🛡️ Glass Box Principles
+
+| # | Principle | Implementation |
+|---|-----------|----------------|
+| 1 | Transparency | SHERLOCK outputs JSON with reasoning |
+| 2 | Human-in-Loop | ARBITER gates all writes |
+| 3 | Auditability | SCRIBE logs to `u_ai_audit_log` |
+| 4 | Reversibility | Work notes capture pre/post state |
+| 5 | Explainability | KB references + confidence scores |
 
 ---
 
@@ -97,16 +116,6 @@ After importing workflows, update credential IDs:
 |---------|-----|---------|
 | n8n | http://localhost:5678 | Workflow orchestration |
 | RedisInsight | http://localhost:8001 | Redis monitoring |
-
----
-
-## 🛡️ Glass Box Principles
-
-1. **Transparency** - All AI reasoning is visible
-2. **Human-in-the-Loop** - Critical actions require approval
-3. **Auditability** - Complete decision trail
-4. **Reversibility** - All actions can be rolled back
-5. **Explainability** - AI explains WHY
 
 ---
 
