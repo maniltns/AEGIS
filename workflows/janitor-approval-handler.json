@@ -1,0 +1,360 @@
+{
+    "name": "AEGIS - Janitor Approval Handler",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "janitor-approval",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "name": "Approval Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "webhook-approval",
+            "webhookId": "janitor-approval"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.body.action }}",
+                            "operation": "equal",
+                            "value2": "approve"
+                        }
+                    ]
+                }
+            },
+            "name": "Approved?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "if-approved"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Extract execution plan from approval\nconst body = $json.body || {};\nconst plan = body.execution_plan || {};\n\nreturn {\n  json: {\n    approved: true,\n    approver: body.approver || 'Teams User',\n    timestamp: new Date().toISOString(),\n    execution_plan: plan,\n    method: plan.method || 'ars_portal'\n  }\n};"
+            },
+            "name": "Parse Approval",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                100
+            ],
+            "id": "parse-approval"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $json.execution_plan.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🧹 JANITOR: ✅ APPROVED\n\nApproved by: {{ $json.approver }}\nTimestamp: {{ $json.timestamp }}\n\n⚙️ Executing remediation..."
+                }
+            },
+            "name": "📝 SCRIBE - Log Approved",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                0,
+                100
+            ],
+            "id": "scribe-approved",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.method }}",
+                            "operation": "equal",
+                            "value2": "ars_portal"
+                        }
+                    ]
+                }
+            },
+            "name": "Route by Method",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 2,
+            "position": [
+                200,
+                100
+            ],
+            "id": "switch-method"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.ARS_AUTOMATION_URL }}/execute",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"action\": \"{{ $('Parse Approval').item.json.execution_plan.action }}\",\n  \"target_user\": \"{{ $('Parse Approval').item.json.execution_plan.target }}\",\n  \"ticket_number\": \"{{ $('Parse Approval').item.json.execution_plan.incident_number }}\",\n  \"standard_change\": \"{{ $('Parse Approval').item.json.execution_plan.standard_change }}\"\n}"
+            },
+            "name": "Execute ARS Portal",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                400,
+                0
+            ],
+            "id": "execute-ars"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.SSM_LAMBDA_URL }}/run-command",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"instance_id\": \"{{ $('Parse Approval').item.json.execution_plan.target_instance }}\",\n  \"script\": \"{{ $('Parse Approval').item.json.execution_plan.script }}\",\n  \"ticket_number\": \"{{ $('Parse Approval').item.json.execution_plan.incident_number }}\"\n}"
+            },
+            "name": "Execute SSM Command",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                400,
+                100
+            ],
+            "id": "execute-ssm"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.OPERA_AUTOMATION_URL }}/execute",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"hotel_code\": \"{{ $('Parse Approval').item.json.execution_plan.hotel_code }}\",\n  \"action\": \"{{ $('Parse Approval').item.json.execution_plan.action }}\",\n  \"params\": {{ JSON.stringify($('Parse Approval').item.json.execution_plan.params || {}) }},\n  \"ticket_number\": \"{{ $('Parse Approval').item.json.execution_plan.incident_number }}\"\n}"
+            },
+            "name": "Execute Opera Change",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                400,
+                200
+            ],
+            "id": "execute-opera"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Parse Approval').item.json.execution_plan.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🧹 JANITOR: ✅ EXECUTION COMPLETE\n\nAction: {{ $('Parse Approval').item.json.execution_plan.action }}\nTarget: {{ $('Parse Approval').item.json.execution_plan.target }}\nResult: {{ $json.success ? 'SUCCESS' : 'FAILED' }}\n\n📸 Pre/Post screenshots captured for audit.\n\nApproved by: {{ $('Parse Approval').item.json.approver }}\nStandard Change: {{ $('Parse Approval').item.json.execution_plan.standard_change }}"
+                }
+            },
+            "name": "📝 SCRIBE - Log Execution",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                600,
+                100
+            ],
+            "id": "scribe-execution",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $json.body.incident_sys_id || $json.body.execution_plan.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🧹 JANITOR: ❌ REJECTED\n\nAuto-remediation was rejected by human approver.\nManual intervention required."
+                }
+            },
+            "name": "📝 SCRIBE - Log Rejected",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                -200,
+                300
+            ],
+            "id": "scribe-rejected",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "={{ $json.approved ? 'Approved - Executing remediation' : 'Rejected - Manual intervention required' }}"
+            },
+            "name": "Respond",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                800,
+                200
+            ],
+            "id": "respond"
+        }
+    ],
+    "connections": {
+        "Approval Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Approved?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Approved?": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Approval",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Rejected",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Approval": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Approved",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 SCRIBE - Log Approved": {
+            "main": [
+                [
+                    {
+                        "node": "Route by Method",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route by Method": {
+            "main": [
+                [
+                    {
+                        "node": "Execute ARS Portal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Execute SSM Command",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Execute Opera Change",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Execute ARS Portal": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Execution",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Execute SSM Command": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Execution",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Execute Opera Change": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Execution",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 SCRIBE - Log Execution": {
+            "main": [
+                [
+                    {
+                        "node": "Respond",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 SCRIBE - Log Rejected": {
+            "main": [
+                [
+                    {
+                        "node": "Respond",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "JANITOR",
+        "Approval Handler",
+        "Human-in-the-Loop"
+    ]
+}

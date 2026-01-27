@@ -796,6 +796,99 @@ flowchart TB
     end
 ```
 
+### 3.3 Deployment Architecture
+
+> [!NOTE]
+> **Infrastructure Overview:** AEGIS is deployed as a containerized solution on AWS with self-managed n8n orchestration.
+
+```mermaid
+graph TB
+    subgraph "☁️ AWS Cloud (Sandbox)"
+        subgraph "🐳 Docker Host (EC2)"
+            N8N["🔄 N8n Orchestration<br/>Self-Hosted Container"]
+            REDIS["📦 Redis Stack<br/>Deduplication + Governance<br/>Port 6379"]
+            INSIGHT["👁️ RedisInsight<br/>Port 8001"]
+        end
+        SSM["🔧 AWS SSM<br/>Run Command"]
+        LAMBDA["⚡ Lambda Functions<br/>Script Runners"]
+    end
+    
+    subgraph "🏢 ServiceNow Cloud"
+        SNOW_INC["📋 Incidents"]
+        SNOW_CASE["📝 Cases"]
+        SNOW_RITM["🎫 RITMs"]
+        SNOW_KB["📚 Knowledge Base"]
+        SNOW_CHG["📑 Standard Changes"]
+        SNOW_AUDIT["📒 Audit Log<br/>u_ai_audit_log"]
+    end
+    
+    subgraph "🤖 AI Services"
+        OPENAI["🧠 OpenAI API<br/>GPT-4o / GPT-4o-mini"]
+        LITELLM["🔀 LiteLLM Proxy<br/>Optional"]
+    end
+    
+    subgraph "🔗 External Integrations"
+        TEAMS["💬 MS Teams<br/>Webhooks + Adaptive Cards"]
+        ARS["🔐 ARS Portal<br/>Identity Management"]
+        OPERA["🏨 PMS Opera<br/>OHIP API / Selenium"]
+    end
+    
+    subgraph "🖥️ Target Infrastructure"
+        WIN["🪟 Windows Servers"]
+        LINUX["🐧 Linux Servers"]
+        PRINTERS["🖨️ Network Printers"]
+    end
+    
+    %% N8n connections
+    N8N <-->|REST API| SNOW_INC
+    N8N <-->|REST API| SNOW_CASE
+    N8N <-->|REST API| SNOW_RITM
+    N8N <-->|REST API| SNOW_KB
+    N8N <-->|REST API| SNOW_CHG
+    N8N -->|Audit Writes| SNOW_AUDIT
+    N8N <-->|TCP 6379| REDIS
+    N8N -->|Webhooks| TEAMS
+    N8N -->|HTTP/Selenium| ARS
+    N8N -->|OHIP API| OPERA
+    N8N -->|API Calls| OPENAI
+    N8N -->|Invoke| LAMBDA
+    
+    %% Execution paths
+    SSM -->|Remote Exec| WIN
+    SSM -->|Remote Exec| LINUX
+    LAMBDA -->|SSM| SSM
+    
+    %% Redis UI
+    REDIS --> INSIGHT
+    
+    classDef aws fill:#FF9900,stroke:#232F3E,color:#232F3E
+    classDef snow fill:#81B5A1,stroke:#333,color:#000
+    classDef integration fill:#7B68EE,stroke:#333,color:#fff
+```
+
+#### Infrastructure Components
+
+| Component | Technology | Hosting | Purpose |
+|-----------|------------|---------|---------|
+| **Orchestration** | n8n v1.x | AWS EC2 (Docker) | Workflow automation engine |
+| **Cache/State** | Redis Stack | AWS EC2 (Docker) | Deduplication, governance flags |
+| **AI Engine** | GPT-4o / GPT-4o-mini | OpenAI API | Triage, classification, analysis |
+| **ITSM** | ServiceNow | Accor Cloud Instance | Tickets, KB, audit logging |
+| **Collaboration** | MS Teams | Microsoft 365 | Notifications, approvals |
+| **Identity** | ARS Portal | On-Premises | Account unlock, password reset |
+| **PMS** | Oracle Opera | Cloud / On-Prem | Hotel transaction management |
+
+#### Network Requirements
+
+| Source | Destination | Port | Protocol | Purpose |
+|--------|-------------|------|----------|---------|
+| n8n | ServiceNow | 443 | HTTPS | REST API |
+| n8n | Redis | 6379 | TCP | State management |
+| n8n | OpenAI | 443 | HTTPS | AI inference |
+| n8n | Teams | 443 | HTTPS | Webhooks |
+| n8n | ARS Portal | 443 | HTTPS | Selenium automation |
+| n8n | AWS SSM | 443 | HTTPS | Remote execution |
+
 ---
 
 ## 4. Infrastructure Setup (AWS Sandbox)

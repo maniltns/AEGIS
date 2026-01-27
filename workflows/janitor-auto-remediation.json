@@ -1,0 +1,302 @@
+{
+    "name": "AEGIS - Janitor Auto-Remediation",
+    "nodes": [
+        {
+            "parameters": {
+                "inputSource": "jsonExample",
+                "jsonExample": "{\n  \"incident_number\": \"INC0012345\",\n  \"incident_sys_id\": \"abc123\",\n  \"short_description\": \"Account locked\",\n  \"target_user\": \"john.doe@client.com\",\n  \"remediation_type\": \"account_unlock\",\n  \"confidence\": 0.94,\n  \"similar_cases\": 47\n}"
+            },
+            "name": "Auto-Fix Candidate Trigger",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -800,
+                200
+            ],
+            "id": "trigger-janitor"
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "key": "=stdchg:{{ $json.remediation_type }}"
+            },
+            "name": "Lookup Standard Change",
+            "type": "n8n-nodes-base.redis",
+            "typeVersion": 1,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "redis-stdchg",
+            "credentials": {
+                "redis": {
+                    "id": "REDIS_CREDENTIAL_ID",
+                    "name": "AEGIS Redis"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{ $json.value }}",
+                            "operation": "isNotEmpty"
+                        }
+                    ]
+                }
+            },
+            "name": "Standard Change Exists?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "if-stdchg"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Build execution plan from Standard Change template\nconst stdChange = JSON.parse($('Lookup Standard Change').item.json.value || '{}');\nconst incident = $('Auto-Fix Candidate Trigger').item.json;\n\nreturn {\n  json: {\n    execution_plan: {\n      incident_number: incident.incident_number,\n      incident_sys_id: incident.incident_sys_id,\n      standard_change: stdChange.change_number || 'CHG0001234',\n      action: incident.remediation_type,\n      target: incident.target_user,\n      method: stdChange.execution_method || 'ars_portal',\n      script: stdChange.script || null,\n      confidence: incident.confidence,\n      similar_cases: incident.similar_cases,\n      timestamp: new Date().toISOString()\n    }\n  }\n};"
+            },
+            "name": "Build Execution Plan",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                100
+            ],
+            "id": "build-plan"
+        },
+        {
+            "parameters": {
+                "workflowId": "KILL_SWITCH_WORKFLOW_ID",
+                "options": {}
+            },
+            "name": "Check Governance",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1,
+            "position": [
+                0,
+                100
+            ],
+            "id": "gov-check"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.can_write }}",
+                            "operation": "equal",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Governance Approved?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                200,
+                100
+            ],
+            "id": "if-gov"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.TEAMS_WEBHOOK_URL }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"type\": \"message\",\n  \"attachments\": [{\n    \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n    \"content\": {\n      \"type\": \"AdaptiveCard\",\n      \"version\": \"1.4\",\n      \"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n      \"body\": [\n        {\n          \"type\": \"TextBlock\",\n          \"text\": \"🧹 JANITOR: Auto-Remediation Request\",\n          \"weight\": \"Bolder\",\n          \"size\": \"Large\"\n        },\n        {\n          \"type\": \"TextBlock\",\n          \"text\": \"{{ $('Build Execution Plan').item.json.execution_plan.incident_number }} | {{ $('Auto-Fix Candidate Trigger').item.json.short_description }}\",\n          \"isSubtle\": true\n        },\n        {\n          \"type\": \"FactSet\",\n          \"facts\": [\n            {\"title\": \"Action\", \"value\": \"{{ $('Build Execution Plan').item.json.execution_plan.action }}\"},\n            {\"title\": \"Target\", \"value\": \"{{ $('Build Execution Plan').item.json.execution_plan.target }}\"},\n            {\"title\": \"Standard Change\", \"value\": \"{{ $('Build Execution Plan').item.json.execution_plan.standard_change }} ✅\"},\n            {\"title\": \"AI Confidence\", \"value\": \"{{ Math.round($('Build Execution Plan').item.json.execution_plan.confidence * 100) }}%\"},\n            {\"title\": \"Similar Past Cases\", \"value\": \"{{ $('Build Execution Plan').item.json.execution_plan.similar_cases }} successful\"}\n          ]\n        },\n        {\n          \"type\": \"TextBlock\",\n          \"text\": \"⚠️ This action will be logged and audited per Glass Box principles.\",\n          \"color\": \"Warning\",\n          \"size\": \"Small\"\n        }\n      ],\n      \"actions\": [\n        {\n          \"type\": \"Action.Http\",\n          \"title\": \"✅ Approve\",\n          \"method\": \"POST\",\n          \"url\": \"{{ $env.N8N_WEBHOOK_URL }}/janitor-approval\",\n          \"body\": \"{\\\"action\\\": \\\"approve\\\", \\\"incident\\\": \\\"{{ $('Build Execution Plan').item.json.execution_plan.incident_number }}\\\", \\\"execution_plan\\\": {{ JSON.stringify($('Build Execution Plan').item.json.execution_plan) }}}\"\n        },\n        {\n          \"type\": \"Action.Http\",\n          \"title\": \"❌ Reject\",\n          \"method\": \"POST\",\n          \"url\": \"{{ $env.N8N_WEBHOOK_URL }}/janitor-approval\",\n          \"body\": \"{\\\"action\\\": \\\"reject\\\", \\\"incident\\\": \\\"{{ $('Build Execution Plan').item.json.execution_plan.incident_number }}\\\"}\"\n        }\n      ]\n    }\n  }]\n}"
+            },
+            "name": "📢 HERALD - Request Approval",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                400,
+                0
+            ],
+            "id": "teams-approval"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Build Execution Plan').item.json.execution_plan.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🧹 JANITOR: Awaiting Human Approval\n\nAction: {{ $('Build Execution Plan').item.json.execution_plan.action }}\nTarget: {{ $('Build Execution Plan').item.json.execution_plan.target }}\nStandard Change: {{ $('Build Execution Plan').item.json.execution_plan.standard_change }}\nConfidence: {{ Math.round($('Build Execution Plan').item.json.execution_plan.confidence * 100) }}%\n\n⏳ Approval request sent to Teams channel."
+                }
+            },
+            "name": "📝 SCRIBE - Log Pending",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                600,
+                0
+            ],
+            "id": "scribe-pending",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Auto-Fix Candidate Trigger').item.json.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=🧹 JANITOR: No Standard Change Template\n\nRemediation type '{{ $('Auto-Fix Candidate Trigger').item.json.remediation_type }}' does not have an approved Standard Change template.\n\n➡️ Falling back to ASSIST mode - manual intervention required."
+                }
+            },
+            "name": "Log No Standard Change",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                -200,
+                300
+            ],
+            "id": "log-no-stdchg",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "incident",
+                "operation": "update",
+                "id": "={{ $('Build Execution Plan').item.json.execution_plan.incident_sys_id }}",
+                "updateFields": {
+                    "work_notes": "=⚠️ JANITOR: Governance Blocked\n\nKill switch is active or governance mode prevents auto-remediation.\nAction logged in OBSERVE mode only."
+                }
+            },
+            "name": "Log Governance Blocked",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                400,
+                200
+            ],
+            "id": "log-gov-blocked",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor Train"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Auto-Fix Candidate Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Lookup Standard Change",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Lookup Standard Change": {
+            "main": [
+                [
+                    {
+                        "node": "Standard Change Exists?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Standard Change Exists?": {
+            "main": [
+                [
+                    {
+                        "node": "Build Execution Plan",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log No Standard Change",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Execution Plan": {
+            "main": [
+                [
+                    {
+                        "node": "Check Governance",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Governance": {
+            "main": [
+                [
+                    {
+                        "node": "Governance Approved?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Governance Approved?": {
+            "main": [
+                [
+                    {
+                        "node": "📢 HERALD - Request Approval",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Log Governance Blocked",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📢 HERALD - Request Approval": {
+            "main": [
+                [
+                    {
+                        "node": "📝 SCRIBE - Log Pending",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "JANITOR",
+        "Auto-Remediation",
+        "Human-in-the-Loop"
+    ]
+}
