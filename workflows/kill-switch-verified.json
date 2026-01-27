@@ -1,0 +1,332 @@
+{
+    "name": "AEGIS - Kill Switch Verified",
+    "nodes": [
+        {
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "kill-switch-request",
+                "responseMode": "responseNode",
+                "options": {}
+            },
+            "name": "Kill Switch Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                -800,
+                200
+            ],
+            "id": "webhook-killswitch",
+            "webhookId": "kill-switch-request"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Extract requester info from Teams webhook\nconst body = $json.body || {};\nconst requester = body.user || {};\n\nreturn {\n  json: {\n    requester_email: requester.email || requester.userPrincipalName || 'unknown',\n    requester_name: requester.displayName || 'Unknown User',\n    requested_action: body.action || 'activate',\n    reason: body.reason || 'No reason provided',\n    timestamp: new Date().toISOString()\n  }\n};"
+            },
+            "name": "Parse Request",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -600,
+                200
+            ],
+            "id": "parse-request"
+        },
+        {
+            "parameters": {
+                "method": "GET",
+                "url": "=https://graph.microsoft.com/v1.0/users/{{ $json.requester_email }}/memberOf",
+                "authentication": "oAuth2",
+                "options": {}
+            },
+            "name": "Check Azure AD Groups",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "check-ad-groups",
+            "credentials": {
+                "oAuth2Api": {
+                    "id": "AZURE_AD_CREDENTIAL_ID",
+                    "name": "Azure AD Graph"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Check if user is in authorized groups\nconst authorizedGroups = [\n  'AEGIS-Kill-Switch-Leads',\n  'IT-Team-Leads',\n  'IT-Managers',\n  'Security-Admins'\n];\n\nconst memberOf = $json.value || [];\nconst userGroups = memberOf.map(g => g.displayName);\n\nconst isAuthorized = userGroups.some(g => authorizedGroups.includes(g));\nconst matchedGroup = userGroups.find(g => authorizedGroups.includes(g)) || null;\n\nreturn {\n  json: {\n    is_authorized: isAuthorized,\n    matched_group: matchedGroup,\n    requester_email: $('Parse Request').first().json.requester_email,\n    requester_name: $('Parse Request').first().json.requester_name,\n    reason: $('Parse Request').first().json.reason\n  }\n};"
+            },
+            "name": "Validate Authorization",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "validate-auth"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.is_authorized }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Authorized?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                0,
+                200
+            ],
+            "id": "if-authorized"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "// Generate 6-digit PIN for verification\nconst pin = Math.floor(100000 + Math.random() * 900000).toString();\nconst expiry = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min expiry\n\nreturn {\n  json: {\n    verification_pin: pin,\n    pin_expiry: expiry,\n    requester_email: $json.requester_email,\n    requester_name: $json.requester_name,\n    reason: $json.reason,\n    matched_group: $json.matched_group\n  }\n};"
+            },
+            "name": "Generate PIN",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                100
+            ],
+            "id": "generate-pin"
+        },
+        {
+            "parameters": {
+                "operation": "set",
+                "key": "=killswitch:pending:{{ $json.requester_email }}",
+                "value": "={{ JSON.stringify({ pin: $json.verification_pin, expiry: $json.pin_expiry, reason: $json.reason }) }}",
+                "expire": 300
+            },
+            "name": "Store PIN in Redis",
+            "type": "n8n-nodes-base.redis",
+            "typeVersion": 1,
+            "position": [
+                400,
+                100
+            ],
+            "id": "store-pin",
+            "credentials": {
+                "redis": {
+                    "id": "REDIS_CREDENTIAL_ID",
+                    "name": "AEGIS Redis"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.TEAMS_WEBHOOK_URL }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"type\": \"message\",\n  \"attachments\": [{\n    \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n    \"content\": {\n      \"type\": \"AdaptiveCard\",\n      \"version\": \"1.4\",\n      \"body\": [\n        {\"type\": \"TextBlock\", \"text\": \"🔴 KILL SWITCH VERIFICATION\", \"weight\": \"Bolder\", \"size\": \"Large\", \"color\": \"Attention\"},\n        {\"type\": \"TextBlock\", \"text\": \"Your PIN has been generated. Enter it below to confirm activation.\", \"wrap\": true},\n        {\"type\": \"FactSet\", \"facts\": [\n          {\"title\": \"Requester\", \"value\": \"{{ $json.requester_name }}\"},\n          {\"title\": \"Role\", \"value\": \"{{ $json.matched_group }}\"},\n          {\"title\": \"PIN Expires\", \"value\": \"5 minutes\"}\n        ]},\n        {\"type\": \"TextBlock\", \"text\": \"⚠️ Your PIN: {{ $json.verification_pin }}\", \"weight\": \"Bolder\", \"color\": \"Attention\"},\n        {\"type\": \"Input.Text\", \"id\": \"submitted_pin\", \"label\": \"Enter PIN to Confirm\", \"maxLength\": 6}\n      ],\n      \"actions\": [\n        {\"type\": \"Action.Submit\", \"title\": \"✅ CONFIRM ACTIVATION\", \"style\": \"destructive\", \"data\": {\"action\": \"confirm_killswitch\", \"email\": \"{{ $json.requester_email }}\"}},\n        {\"type\": \"Action.Submit\", \"title\": \"Cancel\", \"data\": {\"action\": \"cancel\"}}\n      ]\n    }\n  }]\n}"
+            },
+            "name": "Send PIN Challenge Card",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                600,
+                100
+            ],
+            "id": "send-pin-card"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "create",
+                "tableName": "u_ai_audit_log",
+                "additionalFields": {
+                    "u_activity": "KILL_SWITCH_REQUEST",
+                    "u_actor": "={{ $('Parse Request').first().json.requester_email }}",
+                    "u_status": "UNAUTHORIZED",
+                    "u_details": "=Kill Switch request denied. User not in authorized AD groups."
+                }
+            },
+            "name": "📝 Log Unauthorized",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                200,
+                300
+            ],
+            "id": "log-unauthorized",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $env.TEAMS_WEBHOOK_URL }}",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"type\": \"message\",\n  \"attachments\": [{\n    \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n    \"content\": {\n      \"type\": \"AdaptiveCard\",\n      \"version\": \"1.4\",\n      \"body\": [\n        {\"type\": \"TextBlock\", \"text\": \"❌ KILL SWITCH ACCESS DENIED\", \"weight\": \"Bolder\", \"size\": \"Large\", \"color\": \"Attention\"},\n        {\"type\": \"TextBlock\", \"text\": \"You are not authorized to activate the Kill Switch.\", \"wrap\": true},\n        {\"type\": \"TextBlock\", \"text\": \"Required: Team Lead, Manager, or Security Admin role\", \"isSubtle\": true},\n        {\"type\": \"TextBlock\", \"text\": \"⚠️ This attempt has been logged for security audit.\", \"color\": \"Warning\"}\n      ]\n    }\n  }]\n}"
+            },
+            "name": "Send Denied Card",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                400,
+                300
+            ],
+            "id": "send-denied"
+        },
+        {
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ $json.is_authorized ? { status: 'pending_verification', message: 'PIN sent to Teams' } : { status: 'denied', message: 'Unauthorized' } }}"
+            },
+            "name": "Respond",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [
+                800,
+                200
+            ],
+            "id": "respond"
+        }
+    ],
+    "connections": {
+        "Kill Switch Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Parse Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Parse Request": {
+            "main": [
+                [
+                    {
+                        "node": "Check Azure AD Groups",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Azure AD Groups": {
+            "main": [
+                [
+                    {
+                        "node": "Validate Authorization",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Validate Authorization": {
+            "main": [
+                [
+                    {
+                        "node": "Authorized?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Authorized?": {
+            "main": [
+                [
+                    {
+                        "node": "Generate PIN",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "📝 Log Unauthorized",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Generate PIN": {
+            "main": [
+                [
+                    {
+                        "node": "Store PIN in Redis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Store PIN in Redis": {
+            "main": [
+                [
+                    {
+                        "node": "Send PIN Challenge Card",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send PIN Challenge Card": {
+            "main": [
+                [
+                    {
+                        "node": "Respond",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 Log Unauthorized": {
+            "main": [
+                [
+                    {
+                        "node": "Send Denied Card",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Denied Card": {
+            "main": [
+                [
+                    {
+                        "node": "Respond",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "Kill Switch",
+        "Governance",
+        "Security"
+    ]
+}

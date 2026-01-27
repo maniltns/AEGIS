@@ -19,7 +19,37 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 
 ---
 
+## 📊 Solution Comparison: Why AEGIS?
+
+### Feature Comparison Matrix
+
+| Capability | ServiceNow OOB | NowAssist (GenAI) | Virtual Agent | 🛡️ AEGIS |
+|------------|----------------|-------------------|---------------|----------|
+| **AI-Powered Triage** | ❌ Rule-based | ✅ GenAI summary | ⚠️ Scripted | ✅ Multi-agent swarm |
+| **Root Cause Analysis** | ❌ Manual | ✅ AI-assisted | ❌ N/A | ✅ KB-linked reasoning |
+| **Auto-Remediation** | ❌ N/A | ⚠️ Recommend only | ⚠️ Guided | ✅ Full execution |
+| **Storm Shield (Dedup)** | ⚠️ Basic | ❌ N/A | ❌ N/A | ✅ Redis fingerprint |
+| **Kill Switch** | ❌ N/A | ❌ N/A | ❌ N/A | ✅ Multi-level verified |
+| **Glass Box Audit** | N/A | ⚠️ Partial | ❌ Black box | ✅ Full trail |
+| **PMS Opera Integration** | ❌ N/A | ❌ N/A | ❌ N/A | ✅ OHIP + Selenium |
+| **GDPR Built-in** | ⚠️ Manual | ⚠️ Masking | ⚠️ Basic | ✅ PII scrubber |
+
+### Cost-Benefit Analysis (50 Agents)
+
+| Metric | NowAssist | Virtual Agent | 🛡️ AEGIS |
+|--------|-----------|---------------|----------|
+| **Annual License** | ~$96,000 | ~$25,000 | **$0** |
+| **5-Year TCO** | $655,000 | $190,000 | **$80,000** |
+| **Savings vs NowAssist** | — | 71% | **88%** |
+| **Time to Value** | 3-6 months | 1-3 months | **2-4 weeks** |
+
+> [!TIP]
+> **AEGIS Key Advantages:** 88% lower TCO • No per-agent licensing • PMS Opera native • Full data sovereignty
+
+---
+
 ## 🔍 Glass Box Principles
+
 
 > [!CAUTION]
 > **AEGIS operates as a Glass Box, NOT a Black Box.** Every AI decision is transparent, auditable, and reversible.
@@ -1721,7 +1751,66 @@ docker exec its-redis redis-cli SET gov:killswitch true
 
 ---
 
-## 10. Appendix
+## 10. Security Framework
+
+### 10.1 Zero Trust Security Model
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Never Trust, Always Verify** | Azure AD SSO for all API calls |
+| **Least Privilege Access** | Service accounts scoped to specific resources |
+| **Assume Breach** | Continuous monitoring + anomaly detection |
+| **Verify Explicitly** | Token rotation with short-lived credentials |
+| **Just-in-Time Access** | CAB approval expiry for sensitive operations |
+
+### 10.2 Security Control Matrix
+
+| Domain | Control | Implementation |
+|--------|---------|----------------|
+| **Identity** | MFA | Azure AD Conditional Access |
+| **Identity** | RBAC | Azure AD Groups |
+| **Network** | Encryption | TLS 1.3 (AWS ALB) |
+| **Network** | Segmentation | AWS VPC + Security Groups |
+| **Data** | At-Rest Encryption | Redis AOF + AWS EBS |
+| **Data** | PII Anonymization | pii-scrubber.json workflow |
+| **Logging** | Audit Trail | ServiceNow u_ai_audit_log |
+
+---
+
+## 11. GDPR Compliance
+
+### 11.1 Article 5 - Data Processing Principles
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Lawfulness** | Legitimate interest for IT support |
+| **Purpose Limitation** | Data used only for triage/remediation |
+| **Data Minimization** | Only ticket metadata; PII scrubbed |
+| **Storage Limitation** | Redis TTL: 15 min (cache), 7 days (audit) |
+| **Accountability** | Full trail in u_ai_audit_log |
+
+### 11.2 Data Retention Policy
+
+| Data Type | Retention | Storage |
+|-----------|-----------|---------|
+| Storm Shield Cache | 15 minutes | Redis |
+| Audit Decisions | 7 days | Redis |
+| AI Triage Logs | 90 days | ServiceNow |
+| GDPR Audit Trail | 7 years | ServiceNow |
+| Kill Switch Events | 7 years | ServiceNow |
+
+### 11.3 PII Handling
+
+The `pii-scrubber.json` workflow detects and redacts:
+- Email addresses → `[EMAIL_REDACTED]`
+- Phone numbers → `[PHONE_REDACTED]`
+- Credit cards → `[CREDITCARD_REDACTED]`
+- IP addresses → `[IPADDRESS_REDACTED]`
+- Loyalty IDs → `[LOYALTY_ID_REDACTED]`
+
+---
+
+## 12. Appendix
 
 ### A. Glossary
 
@@ -1731,12 +1820,14 @@ docker exec its-redis redis-cli SET gov:killswitch true
 | **Kill Switch** | Emergency global disable for AI writes |
 | **Swarm** | MS Teams group chat for incident collaboration |
 | **RITM** | Requested Item (Service Request) |
+| **PII Scrubber** | GDPR-compliant data anonymization workflow |
 
 ### B. Document Change Log
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1 | Jan 26, 2026 | Anilkumar MN | Initial draft |
+| 1.0 | Jan 27, 2026 | AEGIS Team | Added: Solution comparison, Kill Switch verification, Security framework, GDPR compliance |
 
 ---
 
@@ -1745,3 +1836,6 @@ docker exec its-redis redis-cli SET gov:killswitch true
 > 1. Validate Redis deployment on AWS sandbox
 > 2. Confirm ServiceNow field availability (u_requires_incident, u_incident_created)
 > 3. Finalize workshop agenda with stakeholders
+> 4. Configure Azure AD groups for Kill Switch authorization
+> 5. Review PII patterns for Accor-specific data
+

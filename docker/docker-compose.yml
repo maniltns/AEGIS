@@ -1,5 +1,6 @@
 # AEGIS Docker Stack for POC
 # Redis Stack + n8n Orchestration
+# Security hardened configuration
 
 version: '3.8'
 
@@ -9,20 +10,25 @@ services:
     image: redis/redis-stack:latest
     container_name: aegis-redis
     ports:
-      - "6379:6379"
-      - "8001:8001"  # RedisInsight UI
+      - "127.0.0.1:6379:6379"  # Bind to localhost only
+      - "127.0.0.1:8001:8001"  # RedisInsight UI - localhost only
     volumes:
       - redis_data:/data
     environment:
-      - REDIS_ARGS=--appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      - REDIS_ARGS=--appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-aegis2026secure}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aegis2026secure}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
     networks:
       - aegis-network
+    labels:
+      - "com.aegis.security=high"
+      - "com.aegis.gdpr=pii-cache"
+      - "com.aegis.backup=required"
+
 
   # n8n Workflow Orchestration
   n8n:

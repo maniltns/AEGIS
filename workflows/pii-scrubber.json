@@ -1,0 +1,168 @@
+{
+    "name": "AEGIS - PII Scrubber",
+    "nodes": [
+        {
+            "parameters": {
+                "inputSource": "jsonExample",
+                "jsonExample": "{\n  \"text\": \"User john.doe@accor.com called from +1-555-123-4567 about issue\",\n  \"incident_number\": \"INC0012345\"\n}"
+            },
+            "name": "Trigger",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -400,
+                200
+            ],
+            "id": "trigger-pii"
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "/**\n * AEGIS PII Scrubber\n * Detects and redacts personally identifiable information before AI processing\n * GDPR Article 5 compliant - Data Minimization\n */\n\nconst piiPatterns = {\n  // Email addresses\n  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g,\n  \n  // Phone numbers (international formats)\n  phone: /(\\+?\\d{1,3}[-.\\s]?)?(\\(?\\d{2,3}\\)?[-.\\s]?)?\\d{3,4}[-.\\s]?\\d{3,4}/g,\n  \n  // Social Security Numbers\n  ssn: /\\b\\d{3}[-]?\\d{2}[-]?\\d{4}\\b/g,\n  \n  // Credit card numbers\n  creditCard: /\\b(?:\\d{4}[-\\s]?){3}\\d{4}\\b/g,\n  \n  // IP addresses\n  ipAddress: /\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b/g,\n  \n  // Passport numbers (generic pattern)\n  passport: /\\b[A-Z]{1,2}\\d{6,9}\\b/g,\n  \n  // IBAN numbers\n  iban: /\\b[A-Z]{2}\\d{2}[A-Z0-9]{4,30}\\b/g,\n  \n  // French NIR (Social Security)\n  french_nir: /\\b[12]\\s?\\d{2}\\s?\\d{2}\\s?\\d{2}\\s?\\d{3}\\s?\\d{3}\\s?\\d{2}\\b/g,\n  \n  // Hotel loyalty numbers (Accor specific)\n  loyalty_id: /\\b(ALL|ACCOR)[\\s-]?\\d{10,16}\\b/gi\n};\n\nfunction scrubPII(text) {\n  if (!text || typeof text !== 'string') return { sanitized: text, detections: [] };\n  \n  let sanitized = text;\n  const detections = [];\n  \n  for (const [type, pattern] of Object.entries(piiPatterns)) {\n    const matches = text.match(pattern);\n    if (matches) {\n      detections.push({\n        type: type,\n        count: matches.length,\n        redacted: true\n      });\n      sanitized = sanitized.replace(pattern, `[${type.toUpperCase()}_REDACTED]`);\n    }\n  }\n  \n  return { sanitized, detections };\n}\n\n// Process input text\nconst inputText = $json.text || $json.short_description || $json.description || '';\nconst result = scrubPII(inputText);\n\nreturn {\n  json: {\n    original_length: inputText.length,\n    sanitized_text: result.sanitized,\n    pii_detected: result.detections.length > 0,\n    detections: result.detections,\n    incident_number: $json.incident_number || 'unknown',\n    processed_at: new Date().toISOString()\n  }\n};"
+            },
+            "name": "Scrub PII",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -200,
+                200
+            ],
+            "id": "scrub-pii"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.pii_detected }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "PII Found?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                0,
+                200
+            ],
+            "id": "if-pii-found"
+        },
+        {
+            "parameters": {
+                "authentication": "basicAuth",
+                "resource": "tableRecord",
+                "operation": "create",
+                "tableName": "u_ai_audit_log",
+                "additionalFields": {
+                    "u_activity": "PII_REDACTION",
+                    "u_incident": "={{ $json.incident_number }}",
+                    "u_details": "=PII detected and redacted: {{ JSON.stringify($json.detections) }}",
+                    "u_gdpr_compliant": "true"
+                }
+            },
+            "name": "📝 Log PII Redaction",
+            "type": "n8n-nodes-base.serviceNow",
+            "typeVersion": 1,
+            "position": [
+                200,
+                100
+            ],
+            "id": "log-pii",
+            "credentials": {
+                "serviceNowBasicApi": {
+                    "id": "SNOW_CREDENTIAL_ID",
+                    "name": "ServiceNow Accor"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "sanitized_text",
+                            "value": "={{ $('Scrub PII').item.json.sanitized_text }}"
+                        },
+                        {
+                            "name": "pii_removed",
+                            "value": "={{ $('Scrub PII').item.json.pii_detected ? 'true' : 'false' }}"
+                        }
+                    ]
+                }
+            },
+            "name": "Return Sanitized",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                400,
+                200
+            ],
+            "id": "return-sanitized"
+        }
+    ],
+    "connections": {
+        "Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Scrub PII",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Scrub PII": {
+            "main": [
+                [
+                    {
+                        "node": "PII Found?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "PII Found?": {
+            "main": [
+                [
+                    {
+                        "node": "📝 Log PII Redaction",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Return Sanitized",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 Log PII Redaction": {
+            "main": [
+                [
+                    {
+                        "node": "Return Sanitized",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "tags": [
+        "AEGIS",
+        "PII",
+        "GDPR",
+        "Security",
+        "Sub-workflow"
+    ]
+}
