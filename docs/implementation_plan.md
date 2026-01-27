@@ -221,7 +221,7 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    participant ORACLE as 🧠 Oracle
+    participant SHERLOCK as 🧠 Sherlock
     participant JANITOR as 🧹 Janitor
     participant HUMAN as 👤 Human Approver
     participant STD_CHG as Standard Change DB
@@ -234,7 +234,7 @@ sequenceDiagram
     JANITOR->>STD_CHG: Lookup Standard Change Template
     alt No Template Found
         JANITOR->>SCRIBE: Log "No Standard Change"
-        JANITOR->>ORACLE: Fallback to ASSIST mode
+        JANITOR->>Sherlock: Fallback to ASSIST mode
     else Template Exists
         JANITOR->>JANITOR: Build Execution Plan
         JANITOR->>HUMAN: Request Approval (Teams Card)
@@ -267,13 +267,13 @@ sequenceDiagram
 
 | Capability | Method | Security Control | Client Approval |
 |------------|--------|------------------|----------------|
-| **Windows (Cloud)** | AWS SSM Run Command | IAM Role + Standard Change | ✅ Preferred |
-| **Windows (On-Prem)** | Azure Arc + Run Command | Managed Identity | ✅ Preferred |
+| **Windows (Cloud)** | AWS SSM Run Command | IAM Role + Standard Change |  |
+| **Windows (On-Prem)** | Azure Arc + Run Command | Managed Identity |  |
 | **Windows (Legacy)** | WinRM + PowerShell | Standard Change + Approval | ⚠️ Subject to approval |
-| **Linux (AWS)** | AWS SSM Session Manager | IAM Role + Standard Change | ✅ Preferred |
-| **Linux (On-Prem)** | SSH via Ansible Tower | SSH Key + Standard Change | ✅ Approved |
-| **ARS Portal** | Headless Selenium | Delegated Service Account | ✅ Approved |
-| **PMS Opera** | Headless Selenium | Delegated Service Account | ✅ Approved |
+| **Linux (AWS)** | AWS SSM Session Manager | IAM Role + Standard Change |  |
+| **Linux (On-Prem)** | SSH via Ansible Tower | SSH Key + Standard Change |  |
+| **ARS Portal** | Headless Selenium | Delegated Service Account |  |
+| **PMS Opera** | Headless Selenium | Delegated Service Account |  |
 
 #### User Validation for Sensitive Actions
 
@@ -294,20 +294,18 @@ flowchart LR
 
 #### Supported Auto-Remediation Scenarios (Expanded)
 
-| # | Category | Scenario | Trigger | Action | Std Change |
+| # | Category | Scenario | Trigger | Action | Standard RITM |
 |---|----------|----------|---------|--------|------------|
-| 1 | **Identity** | Account Unlock | "Password locked" | ARS Portal | CHG0001234 |
-| 2 | **Identity** | Password Reset | VIP + Validated | ARS Portal | CHG0001235 |
-| 3 | **Identity** | MFA Token Reset | "MFA not working" | ARS Portal | CHG0001236 |
-| 4 | **Storage** | Disk Cleanup | Alert >90% | SSM/Script | CHG0001237 |
-| 5 | **Storage** | Temp File Purge | "Disk full" | SSM/Script | CHG0001238 |
-| 6 | **Services** | Service Restart | "App not responding" | SSM/Script | CHG0001239 |
-| 7 | **Services** | IIS App Pool Recycle | "Website down" | SSM/Script | CHG0001240 |
-| 8 | **Network** | VPN Profile Push | "VPN not connecting" | Intune | CHG0001241 |
-| 9 | **Network** | DNS Cache Flush | "Cannot resolve" | SSM/Script | CHG0001242 |
-| 10 | **Printing** | Print Spooler Reset | "Printer offline" | SSM/Script | CHG0001243 |
-| 11 | **PMS** | Opera Cache Clear | "PMS slow" | Selenium | CHG0001244 |
-| 12 | **PMS** | Transaction Code Update | RITM + Finance Approval | Selenium | CHG0001245 |
+| 3 | **Identity** | MFA Token Reset | "MFA not working" | ARS Portal | RITM001236 |
+| 4 | **Storage** | Disk Cleanup | Alert >90% | SSM/Script | RITM001237 |
+| 5 | **Storage** | Temp File Purge | "Disk full" | SSM/Script | RITM001238 |
+| 6 | **Services** | Service Restart | "App not responding" | SSM/Script | RITM001239 |
+| 7 | **Services** | IIS App Pool Recycle | "Website down" | SSM/Script | RITM001240 |
+| 8 | **Network** | VPN Profile Push | "VPN not connecting" | Intune | RITM001241 |
+| 9 | **Network** | DNS Cache Flush | "Cannot resolve" | SSM/Script | RITM001242 |
+| 10 | **Printing** | Print Spooler Reset | "Printer offline" | SSM/Script | RITM001243 |
+| 11 | **PMS** | Opera Cache Clear | "PMS slow" | Selenium | RITM001244 |
+| 12 | **PMS** | Transaction Code Update | RITM + Finance Approval | Selenium | RITM001245 |
 
 #### ARS Portal Automation (Selenium)
 
