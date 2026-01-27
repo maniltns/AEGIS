@@ -48,16 +48,50 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 | BRIDGE | ✅ Link visible | Optional | ✅ | ✅ | ✅ Conversion logic |
 | JANITOR | ✅ Pre/post screens | **Mandatory** | ✅ | ✅ | ✅ Std Change ref |
 
-### Kill Switch Protocol
+### Kill Switch Protocol (Enhanced with Verification)
+
+> [!IMPORTANT]
+> **Kill Switch requires multi-level verification.** Only authorized Team Leads/Managers can activate.
 
 ```
-🛑 EMERGENCY STOP PROCEDURE
+🛑 EMERGENCY STOP PROCEDURE (v2.0)
 
-1. Redis Command: SET gov:killswitch false
-2. Effect: ALL AI writes stop immediately
-3. Mode: System enters OBSERVE-only
-4. Resume: SET gov:killswitch true (requires CAB approval)
+AUTHORIZATION REQUIREMENTS:
+├── Role: Team Lead, Manager, or Security Admin (Azure AD verified)
+├── 2FA: 6-digit PIN verification required
+└── Audit: All attempts logged to u_ai_audit_log
+
+ACTIVATION FLOW:
+1. Request via Teams Adaptive Card or Webhook
+2. n8n validates requester against Azure AD groups
+3. System sends PIN challenge to requester
+4. Upon PIN verification: SET gov:killswitch false
+5. System logs: activated_by, timestamp, reason
+6. Stakeholder notification sent automatically
+
+EFFECT:
+• ALL AI writes stop immediately
+• System enters OBSERVE-only mode
+• Work notes indicate "⚠️ KILL SWITCH ACTIVE"
+
+RESUME (requires CAB approval):
+1. Submit reactivation request with CAB reference
+2. Peer approval from second authorized user
+3. SET gov:killswitch true
+4. Audit log updated with CAB reference number
 ```
+
+#### Kill Switch Redis Schema
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `gov:killswitch` | Boolean | System state (true=enabled) |
+| `gov:killswitch:activated_by` | String | Email of activator |
+| `gov:killswitch:timestamp` | String | ISO timestamp |
+| `gov:killswitch:reason` | String | Activation reason |
+| `gov:killswitch:cab_ref` | String | CAB approval for resume |
+
+
 
 ---
 
