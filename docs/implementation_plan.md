@@ -43,11 +43,68 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 | **Savings vs NowAssist** | — | 71% | **88%** |
 | **Time to Value** | 3-6 months | 1-3 months | **2-4 weeks** |
 
+### 5-Year TCO Breakdown
+
+| Component | NowAssist | Virtual Agent | 🛡️ AEGIS |
+|-----------|-----------|---------------|----------|
+| Licensing | $480,000 | $125,000 | $0 |
+| Infrastructure | Included | Included | $40,000 |
+| Implementation | $150,000 | $50,000 | $30,000 |
+| Training | $25,000 | $15,000 | $10,000 |
+| **TOTAL** | **$655,000** | **$190,000** | **$80,000** |
+
+### Key Data Drivers for AEGIS
+
+```mermaid
+mindmap
+    root((🛡️ AEGIS<br/>Decision<br/>Drivers))
+        💰 Cost
+            88% lower TCO vs NowAssist
+            No per-agent licensing
+            Open-source n8n orchestration
+            Self-hosted infrastructure
+        🎛️ Control
+            Self-hosted in VPC
+            Full data sovereignty
+            Custom agent logic
+            No vendor lock-in
+        🏨 Hospitality
+            PMS Opera native integration
+            ARS Portal automation
+            Finance approval workflows
+            Multi-hotel support
+        🔒 Compliance
+            GDPR built-in
+            Glass Box transparency
+            7-year audit retention
+            Kill Switch governance
+        ⚡ Speed
+            2-4 week deployment
+            Rapid iteration
+            No vendor dependency
+            Agile methodology
+```
+
+### Decision Scorecard
+
+| Criterion | Weight | NowAssist | Virtual Agent | 🛡️ AEGIS | Winner |
+|-----------|--------|-----------|---------------|----------|--------|
+| **Cost Efficiency** | 25% | 2/5 | 3/5 | **5/5** | 🛡️ |
+| **Customization** | 20% | 2/5 | 3/5 | **5/5** | 🛡️ |
+| **Time to Value** | 15% | 2/5 | 3/5 | **4/5** | 🛡️ |
+| **AI Sophistication** | 15% | **4/5** | 2/5 | **4/5** | Tie |
+| **Vendor Support** | 10% | **5/5** | **5/5** | 3/5 | SN |
+| **Data Sovereignty** | 10% | 3/5 | 3/5 | **5/5** | 🛡️ |
+| **Integration Depth** | 5% | 4/5 | 3/5 | **5/5** | 🛡️ |
+| **WEIGHTED TOTAL** | 100% | **2.85** | **2.95** | **4.55** | **🛡️** |
+
 > [!TIP]
 > **AEGIS Key Advantages:** 88% lower TCO • No per-agent licensing • PMS Opera native • Full data sovereignty
+
 ---
 
 ## 🔍 Glass Box Principles
+
 
 
 > [!CAUTION]

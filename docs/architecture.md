@@ -4,61 +4,122 @@
 **Client:** Accor Hotels
 
 
-## System Context Diagram
+## System Context Diagram (Mermaid)
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        External Systems                              │
-├─────────────┬────────────┬────────────┬────────────┬───────────────┤
-│ ServiceNow  │  MS Teams  │  OpenAI    │ ARS Portal │  PMS Opera    │
-│  (ITSM)     │  (Collab)  │  (AI)      │ (Identity) │  (Hotels)     │
-└──────┬──────┴─────┬──────┴─────┬──────┴─────┬──────┴───────┬───────┘
-       │            │            │            │              │
-       └────────────┴────────────┼────────────┴──────────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    │     🛡️ AEGIS Core       │
-                    │  (n8n + Redis + Docker) │
-                    └─────────────────────────┘
+```mermaid
+graph TB
+    subgraph "🌐 External Systems"
+        SNOW["📋 ServiceNow<br/>ITSM"]
+        TEAMS["💬 MS Teams<br/>Collaboration"]
+        OPENAI["🧠 OpenAI<br/>AI"]
+        ARS["🔐 ARS Portal<br/>Identity"]
+        OPERA["🏨 PMS Opera<br/>Hotels"]
+    end
+
+    subgraph "🛡️ AEGIS Core"
+        N8N["🔄 n8n<br/>Orchestration"]
+        REDIS["📦 Redis<br/>State"]
+        DOCKER["🐳 Docker<br/>Container"]
+    end
+
+    SNOW <--> N8N
+    TEAMS <--> N8N
+    OPENAI <--> N8N
+    ARS <--> N8N
+    OPERA <--> N8N
+    N8N <--> REDIS
 ```
 
 ---
 
-## Layered Architecture
+## Layered Architecture (Mermaid)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  LAYER 6: USER INTERFACE                                        │
-│  • MS Teams Adaptive Cards    • ServiceNow Portal               │
-│  • RedisInsight Dashboard     • Admin Console                   │
-├─────────────────────────────────────────────────────────────────┤
-│  LAYER 5: API GATEWAY                                           │
-│  • Webhook Endpoints          • REST API Connectors             │
-│  • Microsoft Graph API        • ServiceNow REST                 │
-├─────────────────────────────────────────────────────────────────┤
-│  LAYER 4: APPLICATION SERVICES                                  │
-│  • n8n Workflow Engine        • AI Agent Controller             │
-│  • Notification Service       • Approval Handler                │
-├─────────────────────────────────────────────────────────────────┤
-│  LAYER 3: BUSINESS LOGIC                                        │
-│  • Triage Engine (SHERLOCK)   • Routing Engine (ROUTER)         │
-│  • Remediation Engine (JANITOR)  • Governance (ARBITER)         │
-├─────────────────────────────────────────────────────────────────┤
-│  LAYER 2: DATA ACCESS                                           │
-│  • ServiceNow Connector       • Redis Client                    │
-│  • OpenAI Client             • Teams Connector                  │
-├─────────────────────────────────────────────────────────────────┤
-│  LAYER 1: INFRASTRUCTURE                                        │
-│  • AWS EC2 / Docker          • Redis Stack                      │
-│  • SSL/TLS Encryption        • VPC Security                     │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "Layer 6: Presentation"
+        UI_TEAMS["💬 MS Teams<br/>Adaptive Cards"]
+        UI_SNOW["📋 ServiceNow Portal"]
+        UI_INSIGHT["📊 RedisInsight"]
+        UI_N8N["🔧 n8n Admin"]
+    end
+
+    subgraph "Layer 5: API Gateway"
+        API_WEBHOOK["🔗 Webhooks"]
+        API_GRAPH["🔐 MS Graph API"]
+        API_SNOW["📡 ServiceNow REST"]
+        API_OPENAI["🧠 OpenAI API"]
+    end
+
+    subgraph "Layer 4: Application Services"
+        SVC_N8N["🔄 n8n Engine"]
+        SVC_AGENT["🤖 Agent Controller"]
+        SVC_NOTIFY["📢 HERALD"]
+        SVC_APPROVE["✅ Approval Service"]
+    end
+
+    subgraph "Layer 3: Business Logic"
+        BIZ_TRIAGE["🕵️ SHERLOCK"]
+        BIZ_ROUTE["🚦 ROUTER"]
+        BIZ_REMED["🧹 JANITOR"]
+        BIZ_GOV["⚖️ ARBITER"]
+        BIZ_STORM["🛡️ GUARDIAN"]
+    end
+
+    subgraph "Layer 2: Data Access"
+        DAL_SNOW["📋 ServiceNow Client"]
+        DAL_REDIS["📦 Redis Client"]
+        DAL_LLM["🧠 LLM Client"]
+        DAL_TEAMS["💬 Teams Client"]
+    end
+
+    subgraph "Layer 1: Infrastructure"
+        INFRA_AWS["☁️ AWS EC2"]
+        INFRA_REDIS["📦 Redis Stack"]
+        INFRA_NET["🔒 VPC Network"]
+        INFRA_SSL["🔐 TLS 1.3"]
+    end
+
+    UI_TEAMS --> API_WEBHOOK
+    UI_SNOW --> API_SNOW
+    API_WEBHOOK --> SVC_N8N
+    SVC_N8N --> BIZ_TRIAGE
+    BIZ_TRIAGE --> DAL_LLM
+    BIZ_STORM --> DAL_REDIS
+    DAL_REDIS --> INFRA_REDIS
 ```
 
 ---
 
 ## Agent Architecture
 
-### Multi-Agent Swarm
+### Multi-Agent Swarm (Mermaid)
+
+```mermaid
+graph TB
+    subgraph "🛡️ AEGIS Agent Swarm"
+        GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
+        SCOUT["🔍 SCOUT<br/>Enrichment"]
+        SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
+        ROUTER["🚦 ROUTER<br/>Assignment"]
+        ARBITER["⚖️ ARBITER<br/>Governance"]
+        HERALD["📢 HERALD<br/>Notification"]
+        SCRIBE["📝 SCRIBE<br/>Audit"]
+        BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
+        JANITOR["🧹 JANITOR<br/>Remediation"]
+    end
+    
+    GUARDIAN --> SCOUT
+    SCOUT --> SHERLOCK
+    SHERLOCK --> ROUTER
+    SHERLOCK -->|Auto-Fix| JANITOR
+    ROUTER --> ARBITER
+    JANITOR --> ARBITER
+    ARBITER -->|Approved| HERALD
+    ARBITER -->|Blocked| SCRIBE
+    HERALD --> SCRIBE
+```
+
+### Agent Roles
 
 | Agent | Icon | Responsibility | Trigger |
 |-------|------|----------------|---------|
@@ -72,89 +133,110 @@
 | **BRIDGE** | 🌉 | Case → Incident conversion | L1 case flagged |
 | **JANITOR** | 🧹 | Auto-remediation | High confidence + approval |
 
-### Agent Flow
-
-```
-Ticket → GUARDIAN → SCOUT → SHERLOCK → ROUTER → ARBITER → HERALD → SCRIBE
-              │                            │
-              │ (block)                    │ (deny)
-              └──────────→ SCRIBE ←────────┘
-```
-
 ---
 
-## Deployment Architecture
+## Deployment Architecture (Mermaid)
 
 ### Security Zones
 
-```
-┌─── DMZ (Public) ─────────────────────────────────────────────────┐
-│  AWS ALB (WAF + SSL)         MS Teams Webhook (Inbound)         │
-└───────────────────────────────────┬─────────────────────────────┘
-                                    │
-┌─── Trusted Zone (Application) ────┴─────────────────────────────┐
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Docker Host (EC2)                                         │ │
-│  │  ├── aegis-n8n (port 5678)                                │ │
-│  │  ├── aegis-redis (port 6379 - localhost only)             │ │
-│  │  └── redis-insight (port 8001 - localhost only)           │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│  AWS Lambda Functions                                           │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─── Backend Zone (Services) ───────┴─────────────────────────────┐
-│  AWS SSM        AWS Secrets Manager        AWS KMS              │
-└─────────────────────────────────────────────────────────────────┘
-                                    │
-┌─── External SaaS ─────────────────┴─────────────────────────────┐
-│  ServiceNow    OpenAI API    Azure AD    ARS Portal    Opera    │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "🌐 Internet / External"
+        USER["👤 End Users"]
+        TEAMS_EXT["💬 MS Teams"]
+        SNOW_EXT["📋 ServiceNow"]
+        OPENAI_EXT["🧠 OpenAI API"]
+    end
+
+    subgraph DMZ["⚠️ DMZ Zone"]
+        ALB["AWS ALB<br/>+ WAF"]
+        WEBHOOK["Webhook Endpoint"]
+    end
+
+    subgraph TRUSTED["🔒 Trusted Zone"]
+        subgraph DOCKER["🐳 Docker Host"]
+            N8N["n8n :5678"]
+            REDIS["Redis :6379"]
+            INSIGHT["RedisInsight :8001"]
+        end
+        LAMBDA["⚡ Lambda"]
+    end
+
+    subgraph BACKEND["🔐 Backend Zone"]
+        SSM["AWS SSM"]
+        SECRETS["Secrets Manager"]
+        KMS["AWS KMS"]
+    end
+
+    subgraph TARGETS["🖥️ Target Systems"]
+        WIN["Windows Servers"]
+        LINUX["Linux Servers"]
+        ARS["ARS Portal"]
+        OPERA["PMS Opera"]
+    end
+
+    USER --> TEAMS_EXT
+    TEAMS_EXT --> ALB
+    SNOW_EXT --> ALB
+    ALB --> WEBHOOK
+    WEBHOOK --> N8N
+    N8N --> REDIS
+    N8N --> LAMBDA
+    LAMBDA --> SSM
+    SSM --> WIN
+    SSM --> LINUX
+    N8N --> OPENAI_EXT
+    N8N --> ARS
+    N8N --> OPERA
+    SECRETS --> N8N
+    KMS --> SECRETS
 ```
 
 ---
 
-## Data Flow
+## Data Flow (Mermaid)
 
 ### Incident Triage Flow
 
-```
-ServiceNow
-    │
-    ▼ (Poll every 5 min)
-n8n Webhook
-    │
-    ▼
-GUARDIAN (Storm Shield)
-    │
-    ├──[BLOCK]──► Log to SCRIBE
-    │
-    ▼ [PASS]
-SCOUT (Enrich)
-    │
-    ▼
-SHERLOCK (AI Triage)
-    │
-    ├──► OpenAI API
-    │◄──
-    │
-    ▼
-ARBITER (Governance)
-    │
-    ├──[KILL SWITCH]──► SCRIBE (observe only)
-    │
-    ▼ [APPROVED]
-HERALD (Notify)
-    │
-    ├──► MS Teams
-    ├──► ServiceNow (update)
-    │
-    ▼
-SCRIBE (Audit)
-    │
-    └──► u_ai_audit_log
+```mermaid
+flowchart LR
+    subgraph INPUT["📥 Sources"]
+        INC["Incidents"]
+        CASE["Cases"]
+        RITM["RITMs"]
+    end
+
+    subgraph PROCESS["⚙️ Pipeline"]
+        STORM["🛡️ Storm Shield"]
+        ENRICH["🔍 Enrichment"]
+        PII["🔒 PII Scrubber"]
+        AI["🧠 AI Triage"]
+        GOV["⚖️ Governance"]
+    end
+
+    subgraph OUTPUT["📤 Actions"]
+        UPDATE["📝 Ticket Update"]
+        NOTIFY["📢 Teams Notify"]
+        AUDIT["📊 Audit Log"]
+        EXEC["🔧 Remediation"]
+    end
+
+    INC --> STORM
+    CASE --> STORM
+    RITM --> STORM
+    STORM -->|Pass| ENRICH
+    STORM -->|Block| AUDIT
+    ENRICH --> PII
+    PII --> AI
+    AI --> GOV
+    GOV -->|Approved| UPDATE
+    GOV -->|Approved| NOTIFY
+    GOV -->|Observe| AUDIT
+    GOV -->|Auto-Fix| EXEC
 ```
 
 ---
+
 
 ## Redis Schema
 

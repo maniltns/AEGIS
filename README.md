@@ -81,24 +81,71 @@ docker exec aegis-redis redis-cli -a $REDIS_PASSWORD SET gov:mode assist
 
 ## Architecture
 
-### Multi-Agent Swarm
+### Multi-Agent Swarm (Mermaid)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    🛡️ AEGIS Agent Swarm                     │
-├─────────────┬─────────────┬─────────────┬──────────────────┤
-│  🛡️ GUARDIAN │  🔍 SCOUT   │ 🕵️ SHERLOCK │   🚦 ROUTER      │
-│  Storm Shield│  Enrichment │  AI Triage  │   Assignment     │
-├─────────────┼─────────────┼─────────────┼──────────────────┤
-│  ⚖️ ARBITER  │  📢 HERALD  │  📝 SCRIBE  │   🌉 BRIDGE      │
-│  Governance │  Notify     │  Audit      │   Case→Incident  │
-├─────────────┴─────────────┴─────────────┴──────────────────┤
-│                      🧹 JANITOR                             │
-│              Auto-Remediation (with approval)               │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "🛡️ AEGIS Agent Swarm"
+        GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
+        SCOUT["🔍 SCOUT<br/>Enrichment"]
+        SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
+        ROUTER["🚦 ROUTER<br/>Assignment"]
+        ARBITER["⚖️ ARBITER<br/>Governance"]
+        HERALD["📢 HERALD<br/>Notification"]
+        SCRIBE["📝 SCRIBE<br/>Audit"]
+        BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
+        JANITOR["🧹 JANITOR<br/>Remediation"]
+    end
+    
+    GUARDIAN --> SCOUT
+    SCOUT --> SHERLOCK
+    SHERLOCK --> ROUTER
+    SHERLOCK -->|Auto-Fix| JANITOR
+    ROUTER --> ARBITER
+    JANITOR --> ARBITER
+    ARBITER -->|Approved| HERALD
+    ARBITER -->|Blocked| SCRIBE
+    HERALD --> SCRIBE
 ```
 
-### Technology Stack
+### Technology Stack (Mermaid)
+
+```mermaid
+graph LR
+    subgraph "🖥️ User Interfaces"
+        TEAMS["MS Teams"]
+        SNOW_UI["ServiceNow"]
+    end
+
+    subgraph "🔄 Orchestration"
+        N8N["n8n Workflows"]
+    end
+
+    subgraph "🧠 Intelligence"
+        LLM["GPT-4o"]
+        PII["PII Scrubber"]
+    end
+
+    subgraph "💾 Data"
+        REDIS["Redis Stack"]
+        SNOW_DB["ServiceNow"]
+    end
+
+    subgraph "🏗️ Infrastructure"
+        EC2["AWS EC2"]
+        DOCKER["Docker"]
+    end
+
+    TEAMS --> N8N
+    SNOW_UI --> N8N
+    N8N --> LLM
+    N8N --> PII
+    N8N --> REDIS
+    N8N --> SNOW_DB
+    EC2 --> DOCKER
+```
+
+### Technology Summary
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
@@ -110,6 +157,7 @@ docker exec aegis-redis redis-cli -a $REDIS_PASSWORD SET gov:mode assist
 | **Infra** | AWS EC2/Docker | Container hosting |
 
 ---
+
 
 ## Workflows
 
