@@ -45,7 +45,6 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 
 > [!TIP]
 > **AEGIS Key Advantages:** 88% lower TCO • No per-agent licensing • PMS Opera native • Full data sovereignty
-
 ---
 
 ## 🔍 Glass Box Principles
