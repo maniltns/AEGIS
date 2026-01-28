@@ -53,6 +53,7 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 | Training | $25,000 | $15,000 | $10,000 |
 | **TOTAL** | **$655,000** | **$190,000** | **$80,000** |
 
+*Above Figures are shown as Indicative and approximate number
 ### Key Data Drivers for AEGIS
 
 ```mermaid
