@@ -180,14 +180,18 @@ graph LR
 
 | Document | Description |
 |----------|-------------|
-| [Implementation Plan](docs/implementation_plan.md) | Full technical specification |
-| [Demo Script](docs/demo-script.md) | Workshop demonstration guide |
-| [Contributing Guide](CONTRIBUTING.md) | How to contribute |
-| [Changelog](CHANGELOG.md) | Version history |
-| [User Stories](docs/user-stories.md) | Agile backlog |
-| [Sprint Board](docs/sprint-backlog.md) | Current sprint items |
+| [📘 TAD (Technical Architecture)](docs/TAD.md) | **NEW** - System specifications, diagrams |
+| [📗 Product Documentation](docs/product-documentation.md) | **NEW** - Features, workflows, user guides |
+| [📋 Implementation Plan](docs/implementation_plan.md) | Full technical specification |
+| [🎨 Architecture Diagrams](docs/architecture-diagrams.md) | Mermaid/Draw.io diagrams |
+| [🎬 Demo Script](docs/demo-script.md) | Workshop demonstration guide |
+| [📖 User Stories](docs/user-stories.md) | Agile backlog |
+| [📊 Sprint Board](docs/sprint-backlog.md) | Current sprint items |
+| [🤝 Contributing](CONTRIBUTING.md) | How to contribute |
+| [📝 Changelog](CHANGELOG.md) | Version history |
 
 ---
+
 
 ## Project Structure
 

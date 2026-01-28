@@ -19,21 +19,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1] - 2026-01-28
 
 ### Added
+- **Technical Architecture Document (TAD)** - `docs/TAD.md`
+  - System context and layered architecture
+  - Component specifications
+  - Security architecture with zones
+  - Data architecture and retention
+  - API and integration specs
+- **Product Documentation** - `docs/product-documentation.md`
+  - Feature catalog (5 categories)
+  - User personas (4 roles)
+  - Workflow guides
+  - Configuration reference
+  - Troubleshooting guide
 - **Architecture Diagrams** - Comprehensive Mermaid diagrams
-  - 6-Layer Architecture diagram (Presentation to Infrastructure)
+  - 6-Layer Architecture diagram
   - Technology Stack Architecture
   - Security Zones Deployment diagram  
   - Data Flow Architecture
-  - Component Interaction Matrix
-  - Standalone `architecture-diagrams.md` with Draw.io instructions
+  - Key Data Drivers mindmap
+  - Decision Scorecard
 
 ### Changed
-- Updated `implementation_plan.md` with 5 new architecture sections (3.4-3.8)
-- Enhanced `docs/architecture.md` with detailed diagrams
+- Updated `implementation_plan.md` with Key Data Drivers and Decision Scorecard
+- Standardized all diagrams to Mermaid format across docs
+- Enhanced `README.md` with documentation links
 
 ---
 
 ## [1.1.0] - 2026-01-27
+
 
 
 ### Added
