@@ -122,7 +122,7 @@ timeline
                   : Kill Switch
     section Pilot
         Feb 5-28 : 🟡 Pilot Phase
-                 : 3 Hotels
+                 : GSS Care Team
                  : Live Tickets
                  : Agent Training
     section Production
@@ -132,7 +132,6 @@ timeline
                  : 24/7 Operations
     section Scale
         Apr 15+ : 🔮 Regional Rollout
-               : 50+ Hotels
                : Phase 2 Features
                : JANITOR Auto-Fix
 ```
@@ -202,7 +201,7 @@ gantt
 ```
 
 1. **Workshop Demo** — February 4, 2026
-2. **Pilot Approval** — 3 hotels, 4 weeks
+2. **Pilot Approval** — GSS Care Team, 4 weeks
 3. **Executive Sponsor** — For production gate
 
 ---
