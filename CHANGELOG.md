@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.1] - 2026-01-28
 
 ### Added
+- **🧠 Custom RAG Service** - Intelligent Knowledge Retrieval
+  - `rag-service/main.py` - FastAPI with Titan V2 + Claude Sonnet 4.5
+  - `rag-service/Dockerfile` - Docker container configuration
+  - ChromaDB vector database for KB, tickets, SOPs
+  - `workflows/rag-intelligent-triage.json` - n8n integration
+  - `docs/rag-service.md` - API documentation
 - **Technical Architecture Document (TAD)** - `docs/TAD.md`
   - System context and layered architecture
   - Component specifications
@@ -40,11 +46,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Decision Scorecard
 
 ### Changed
+- `docker-compose.yml` - Added aegis-rag container
 - Updated `implementation_plan.md` with Key Data Drivers and Decision Scorecard
 - Standardized all diagrams to Mermaid format across docs
 - Enhanced `README.md` with documentation links
 
 ---
+
 
 ## [1.1.0] - 2026-01-27
 

@@ -1,0 +1,337 @@
+{
+    "name": "🧠 RAG Intelligent Triage",
+    "nodes": [
+        {
+            "parameters": {},
+            "id": "rag-start",
+            "name": "Start",
+            "type": "n8n-nodes-base.start",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "short_description",
+                            "name": "short_description",
+                            "value": "={{ $json.short_description }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "description",
+                            "name": "description",
+                            "value": "={{ $json.description }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "caller",
+                            "name": "caller",
+                            "value": "={{ $json.caller_id.display_value || $json.caller_id }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "category",
+                            "name": "category",
+                            "value": "={{ $json.category }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "priority",
+                            "name": "priority",
+                            "value": "={{ $json.priority }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "rag-prepare",
+            "name": "📋 Prepare RAG Query",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.3,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "http://aegis-rag:8000/api/v1/analyze",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={{ JSON.stringify({\n  \"short_description\": $json.short_description,\n  \"description\": $json.description,\n  \"caller\": $json.caller,\n  \"category\": $json.category,\n  \"priority\": $json.priority\n}) }}",
+                "options": {
+                    "timeout": 30000
+                }
+            },
+            "id": "rag-http",
+            "name": "🧠 RAG Service API",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                650,
+                300
+            ],
+            "notesInFlow": true,
+            "notes": "POST to RAG Service\nEndpoint: /api/v1/analyze\nReturns: KB articles, similar tickets, AI analysis"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "confidence-check",
+                            "leftValue": "={{ $json.overall_confidence }}",
+                            "rightValue": 0.8,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gte"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "rag-confidence-check",
+            "name": "🎯 Confidence Check",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "rag_query_id",
+                            "name": "rag_query_id",
+                            "value": "={{ $json.query_id }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_analysis",
+                            "name": "rag_analysis",
+                            "value": "={{ $json.analysis }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_root_cause",
+                            "name": "rag_root_cause",
+                            "value": "={{ $json.root_cause_hypothesis }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_actions",
+                            "name": "rag_actions",
+                            "value": "={{ $json.recommended_actions.join('\\n• ') }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_suggested_category",
+                            "name": "rag_suggested_category",
+                            "value": "={{ $json.suggested_category.category + ' → ' + $json.suggested_category.subcategory }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_category_confidence",
+                            "name": "rag_category_confidence",
+                            "value": "={{ Math.round($json.suggested_category.confidence * 100) }}%",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_kb_articles",
+                            "name": "rag_kb_articles",
+                            "value": "={{ $json.kb_articles.map(kb => kb.kb_number + ': ' + kb.title).join('\\n') }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_similar_tickets",
+                            "name": "rag_similar_tickets",
+                            "value": "={{ $json.similar_tickets.slice(0, 3).map(t => t.incident_number + ' (' + Math.round(t.relevance_score * 100) + '%)').join(', ') }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_overall_confidence",
+                            "name": "rag_overall_confidence",
+                            "value": "={{ Math.round($json.overall_confidence * 100) }}%",
+                            "type": "string"
+                        },
+                        {
+                            "id": "rag_processing_time",
+                            "name": "rag_processing_time",
+                            "value": "={{ $json.processing_time_ms }}ms",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "rag-format-high",
+            "name": "✅ Format High Confidence",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.3,
+            "position": [
+                1050,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "requires_review",
+                            "name": "requires_review",
+                            "value": true,
+                            "type": "boolean"
+                        },
+                        {
+                            "id": "review_reason",
+                            "name": "review_reason",
+                            "value": "RAG confidence below threshold ({{ Math.round($json.overall_confidence * 100) }}%)",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "rag-format-low",
+            "name": "⚠️ Low Confidence - Review",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.3,
+            "position": [
+                1050,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## 🧠 AEGIS RAG Intelligent Triage\n\n**Purpose:** Retrieve relevant KB articles, similar tickets, and SOPs using custom RAG pipeline.\n\n**Components:**\n- **Embedding Model:** Amazon Titan Text V2\n- **Reasoning Model:** Claude Sonnet 4.5\n- **Vector DB:** ChromaDB\n- **API:** FastAPI on Docker\n\n**Endpoint:** `POST http://aegis-rag:8000/api/v1/analyze`\n\n**Response includes:**\n- AI analysis & root cause hypothesis\n- Recommended actions\n- Suggested category with confidence\n- Top 5 KB articles by relevance\n- Top 5 similar historical tickets\n- SOP references",
+                "height": 400,
+                "width": 350
+            },
+            "id": "rag-note",
+            "name": "Sticky Note",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                200,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## Output Format\n\n```json\n{\n  \"rag_query_id\": \"abc123def456\",\n  \"rag_analysis\": \"User cannot login...\",\n  \"rag_root_cause\": \"Password expired\",\n  \"rag_suggested_category\": \"Identity → Password\",\n  \"rag_kb_articles\": \"KB0001234: Password Reset\",\n  \"rag_similar_tickets\": \"INC0056789 (94%)\",\n  \"rag_overall_confidence\": \"92%\"\n}\n```",
+                "height": 280,
+                "width": 320
+            },
+            "id": "rag-output-note",
+            "name": "Sticky Note1",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                520
+            ]
+        }
+    ],
+    "connections": {
+        "Start": {
+            "main": [
+                [
+                    {
+                        "node": "📋 Prepare RAG Query",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📋 Prepare RAG Query": {
+            "main": [
+                [
+                    {
+                        "node": "🧠 RAG Service API",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🧠 RAG Service API": {
+            "main": [
+                [
+                    {
+                        "node": "🎯 Confidence Check",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🎯 Confidence Check": {
+            "main": [
+                [
+                    {
+                        "node": "✅ Format High Confidence",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "⚠️ Low Confidence - Review",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "versionId": "rag-v1",
+    "meta": {
+        "instanceId": "aegis-rag-triage"
+    },
+    "tags": [
+        {
+            "name": "AEGIS",
+            "createdAt": "2026-01-28T00:00:00.000Z"
+        },
+        {
+            "name": "RAG",
+            "createdAt": "2026-01-28T00:00:00.000Z"
+        },
+        {
+            "name": "AI",
+            "createdAt": "2026-01-28T00:00:00.000Z"
+        }
+    ]
+}

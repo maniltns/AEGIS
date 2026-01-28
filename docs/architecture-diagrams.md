@@ -20,77 +20,211 @@ This document contains Draw.io compatible XML and Mermaid diagrams for the AEGIS
 
 ## Layered Architecture
 
+> **Inspired by:** Enterprise AI Platform Reference Architecture
+
+### Legend
+
+| Color | Status |
+|-------|--------|
+| 🟢 **Green** | Configuration Only - No Code Changes |
+| 🟠 **Orange** | In Scope - Code Changes Required |
+| ⚪ **Gray** | Currently Not Considered |
+| 🔵 **Blue** | New Changes / Future Enhancement |
+
+---
+
 ### Mermaid Diagram
 
 ```mermaid
 graph TB
-    subgraph "Layer 6: Presentation"
-        UI_TEAMS["💬 MS Teams<br/>Adaptive Cards"]
-        UI_SNOW["📋 ServiceNow Portal<br/>Agent Workspace"]
-        UI_INSIGHT["📊 RedisInsight<br/>Monitoring Dashboard"]
-        UI_N8N["🔧 n8n Admin<br/>Workflow Editor"]
+    subgraph L1["Layer 1: ServiceNow & Collaboration"]
+        direction LR
+        subgraph L1_SNOW["📋 ServiceNow Portal"]
+            USERS["👤 Users & Groups"]
+            SESSION["📱 Session Mgmt"]
+            INCIDENT["🎫 Incident View"]
+        end
+        subgraph L1_COLLAB["💬 MS Teams Interface"]
+            CHAT["💬 Chat Interface"]
+            CARDS["🃏 Adaptive Cards"]
+            APPROVAL["✅ Approval Buttons"]
+        end
+        subgraph L1_ADMIN["🔧 Admin Panel"]
+            N8N_UI["n8n Console"]
+            REDIS_UI["RedisInsight"]
+            CONFIG["⚙️ Configuration"]
+        end
     end
 
-    subgraph "Layer 5: API Gateway"
-        API_WEBHOOK["🔗 Webhook Endpoints<br/>Inbound Triggers"]
-        API_GRAPH["🔐 MS Graph API<br/>Azure AD Auth"]
-        API_SNOW["📡 ServiceNow REST<br/>Table/Attachment API"]
-        API_OPENAI["🧠 OpenAI API<br/>Chat Completions"]
+    subgraph L2["Layer 2: n8n Pipelines"]
+        direction LR
+        subgraph L2_CONNECTORS["🔗 Pipeline Connectors"]
+            SNOW_CONN["📋 ServiceNow<br/>Connector"]
+            TEAMS_CONN["💬 Teams<br/>Webhook"]
+            HTTP_CONN["🌐 HTTP<br/>Nodes"]
+        end
+        subgraph L2_PIPELINES["⚙️ Core Pipelines"]
+            STORM_PIPE["🛡️ Storm Shield<br/>Pipeline"]
+            TRIAGE_PIPE["🕵️ Master Triage<br/>Pipeline"]
+            CASE_PIPE["🌉 Case→Incident<br/>Pipeline"]
+        end
+        subgraph L2_TOOLS["🔧 Tool Calling"]
+            PII_TOOL["🔒 PII Scrubber"]
+            KB_TOOL["📚 KB Search"]
+            FUNC_CALL["⚡ Function<br/>Calling"]
+        end
     end
 
-    subgraph "Layer 4: Application Services"
-        SVC_N8N["🔄 n8n Engine<br/>Workflow Orchestration"]
-        SVC_AGENT["🤖 Agent Controller<br/>Swarm Coordination"]
-        SVC_NOTIFY["📢 Notification Service<br/>HERALD"]
-        SVC_APPROVE["✅ Approval Service<br/>Human-in-Loop"]
+    subgraph L3["Layer 3: Middleware"]
+        direction LR
+        subgraph L3_ACCESS["🔐 Access Control"]
+            AAD["🔑 Azure AD<br/>SSO"]
+            RBAC["👥 Role-Based<br/>Access"]
+            KILLSWITCH["🛑 Kill Switch<br/>Gate"]
+        end
+        subgraph L3_DATA["📊 Data Sources & External Connectors"]
+            SNOW_API["📋 ServiceNow<br/>REST API"]
+            REDIS_CONN["📦 Redis<br/>Connection"]
+            SSM_CONN["🔧 AWS SSM"]
+            ARS_CONN["🔐 ARS Portal"]
+            OPERA_CONN["🏨 Opera PMS"]
+        end
     end
 
-    subgraph "Layer 3: Business Logic"
-        BIZ_TRIAGE["🕵️ Triage Engine<br/>SHERLOCK"]
-        BIZ_ROUTE["🚦 Routing Engine<br/>ROUTER"]
-        BIZ_REMED["🧹 Remediation Engine<br/>JANITOR"]
-        BIZ_GOV["⚖️ Governance Engine<br/>ARBITER"]
-        BIZ_STORM["🛡️ Storm Shield<br/>GUARDIAN"]
+    subgraph L4["Layer 4: AI Engine Layer"]
+        direction LR
+        subgraph L4_RAG["🧠 RAG Engine"]
+            DOC_PARSE["📄 Document<br/>Parser"]
+            EMBEDDING["🔢 Embedding<br/>(Titan V2)"]
+            CHUNKING["✂️ Chunking"]
+            INDEXING["📇 Indexing"]
+            AUDIT_TRAIL["📝 Audit Trail"]
+            
+            QUERY_ROUTE["🔀 Query<br/>Routing"]
+            RAG_PROMPT["💭 RAG Prompt<br/>Builder"]
+            RERANK["📊 Retrieval<br/>Reranking"]
+            KB_FUSION["🔗 Knowledge<br/>Fusion"]
+            CONTENT_GEN["📝 Content<br/>Generation"]
+            
+            RAG_MEM["🧠 RAG Memory"]
+            MULTIMODAL["🖼️ Multi-Modal<br/>Support"]
+            RAG_CHAIN["⛓️ RAG Chain"]
+            FASTAPI["🚀 Pipeline Server<br/>(FastAPI)"]
+        end
+
+        KNOWLEDGE["💾 Knowledge<br/>Store<br/>(ChromaDB)"]
+        AUDIT_LOG["📊 Audit<br/>Logging"]
+
+        subgraph L4_AGENT["🤖 Agent Engine"]
+            TASK_PLAN["📋 Task<br/>Planning"]
+            TASK_EXEC["⚡ Task<br/>Execution"]
+            DECISION["🎯 Decision<br/>Engine"]
+            AGENT_MEM["🧠 Agent<br/>Memory"]
+            
+            STATE_MGMT["📊 State<br/>Management"]
+            MULTI_AGENT["🤝 Multi-Agent<br/>Orchestration"]
+            WORKFLOWS["🔄 Multi-step<br/>Workflows"]
+            TOOL_CALL["🔧 Tool<br/>Calling"]
+            
+            AGENT_CHAIN["⛓️ Agent Chain"]
+        end
     end
 
-    subgraph "Layer 2: Data Access"
-        DAL_SNOW["📋 ServiceNow Client<br/>REST Operations"]
-        DAL_REDIS["📦 Redis Client<br/>State Management"]
-        DAL_LLM["🧠 LLM Client<br/>AI Inference"]
-        DAL_TEAMS["💬 Teams Client<br/>Webhook Calls"]
+    subgraph L5["Layer 5: LLM Inferencing & Observability"]
+        direction LR
+        subgraph L5_OBS["📊 Observability"]
+            LLM_OBS["👁️ LLM<br/>Observability"]
+            LLMOPS["⚙️ LLMOps<br/>- Model Registry<br/>- Config Store"]
+        end
+        subgraph L5_ENDPOINTS["🔌 LLM Endpoints"]
+            BEDROCK["☁️ AWS<br/>Bedrock"]
+            ANTHROPIC["🤖 Anthropic<br/>Claude"]
+            OPENAI["🧠 OpenAI<br/>GPT-4o"]
+            TITAN["📐 Titan<br/>Embeddings"]
+        end
     end
 
-    subgraph "Layer 1: Infrastructure"
-        INFRA_AWS["☁️ AWS EC2<br/>Docker Host"]
-        INFRA_REDIS["📦 Redis Stack<br/>In-Memory Store"]
-        INFRA_NET["🔒 VPC Network<br/>Security Groups"]
-        INFRA_SSL["🔐 TLS 1.3<br/>Encryption"]
+    %% External Integrations
+    subgraph EXTERNAL["📡 External Integrations"]
+        SERVICENOW["📋 ServiceNow<br/>ITSM"]
+        SPLUNK["📊 Splunk<br/>Monitoring"]
     end
 
-    UI_TEAMS --> API_WEBHOOK
-    UI_SNOW --> API_SNOW
-    API_WEBHOOK --> SVC_N8N
-    API_SNOW --> SVC_N8N
-    SVC_N8N --> BIZ_TRIAGE
-    SVC_N8N --> BIZ_GOV
-    BIZ_TRIAGE --> DAL_LLM
-    BIZ_STORM --> DAL_REDIS
-    DAL_REDIS --> INFRA_REDIS
-    DAL_SNOW --> INFRA_NET
+    %% Layer Connections
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
+    L4 --> L5
+    
+    %% External connections
+    L4_RAG --> KNOWLEDGE
+    L4_AGENT --> AUDIT_LOG
+    AUDIT_LOG --> SERVICENOW
+    L5_OBS --> SPLUNK
+
+    %% Styling
+    classDef configOnly fill:#4CAF50,stroke:#2E7D32,color:#fff
+    classDef inScope fill:#FF9800,stroke:#E65100,color:#fff
+    classDef notConsidered fill:#9E9E9E,stroke:#616161,color:#fff
+    classDef newChange fill:#2196F3,stroke:#1565C0,color:#fff
+    classDef future fill:#fff,stroke:#2196F3,stroke-width:2px,color:#2196F3
+    
+    class STORM_PIPE,TRIAGE_PIPE,CASE_PIPE,PII_TOOL configOnly
+    class DOC_PARSE,EMBEDDING,CHUNKING,INDEXING,QUERY_ROUTE,RAG_PROMPT,RERANK,FASTAPI inScope
+    class MULTIMODAL,KB_FUSION,CONTENT_GEN future
+    class TASK_PLAN,TASK_EXEC,DECISION,STATE_MGMT,MULTI_AGENT,WORKFLOWS,TOOL_CALL inScope
 ```
+
+---
 
 ### Layer Descriptions
 
-| Layer | Components | Purpose |
-|-------|-----------|---------|
-| **6. Presentation** | MS Teams, ServiceNow, RedisInsight, n8n UI | User interaction |
-| **5. API Gateway** | Webhooks, Graph API, SNOW REST, OpenAI API | External interfaces |
-| **4. Application** | n8n Engine, Agent Controller, Notification, Approval | Core services |
-| **3. Business Logic** | SHERLOCK, ROUTER, JANITOR, ARBITER, GUARDIAN | Domain logic |
-| **2. Data Access** | ServiceNow, Redis, LLM, Teams clients | Data layer |
-| **1. Infrastructure** | AWS EC2, Redis, VPC, TLS | Foundation |
+| Layer | Components | Scaling | Purpose |
+|-------|-----------|---------|---------|
+| **Layer 1: UI** | ServiceNow Portal, MS Teams, Admin Panel | Horizontal | User interactions, session management |
+| **Layer 2: Pipelines** | n8n Workflows, Connectors, Tool Calling | Horizontal | Pipeline orchestration, RAG pipelines |
+| **Layer 3: Middleware** | Azure AD, Data Connectors, Kill Switch | Horizontal | Access control, external data sources |
+| **Layer 4: AI Engine** | RAG Engine + Agent Engine | Hybrid | Core AI processing, embeddings, reasoning |
+| **Layer 5: LLM** | Bedrock, Anthropic, OpenAI, Titan | Model-specific + Load Balancing | LLM inference, observability |
 
 ---
+
+### Layer 4 Deep Dive: AI Engine
+
+#### 🧠 RAG Engine Components
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| Document Parser | 🟠 In Scope | Parse KB articles, tickets, SOPs |
+| Embedding (Titan V2) | 🟠 In Scope | Amazon Titan Text Embeddings V2 |
+| Chunking | 🟠 In Scope | Split documents for vector storage |
+| Indexing | 🟠 In Scope | ChromaDB vector indexing |
+| Query Routing | 🟠 In Scope | Route to appropriate KB/ticket collection |
+| RAG Prompt Builder | 🟠 In Scope | Construct context-rich prompts |
+| Retrieval Reranking | 🟠 In Scope | Score and rerank retrieved docs |
+| Knowledge Fusion | 🔵 Future | Combine multiple knowledge sources |
+| Content Generation | 🔵 Future | Generate resolutions from KB |
+| RAG Memory | 🟠 In Scope | Conversation/session context |
+| Multi-Modal Support | 🔵 Future | Image/attachment processing |
+| RAG Chain | 🟠 In Scope | Sequential RAG steps |
+| Pipeline Server | 🟠 In Scope | FastAPI `/api/v1/analyze` |
+
+#### 🤖 Agent Engine Components
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| Task Planning | 🟠 In Scope | SHERLOCK → ROUTER → JANITOR sequencing |
+| Task Execution | 🟠 In Scope | n8n workflow execution |
+| Decision Engine | 🟠 In Scope | ARBITER governance decisions |
+| Agent Memory | 🟠 In Scope | Redis state for agents |
+| State Management | 🟠 In Scope | Redis `gov:*` keys |
+| Multi-Agent Orchestration | 🟠 In Scope | 9-agent swarm coordination |
+| Multi-step Workflows | 🟠 In Scope | Complex workflow chains |
+| Tool Calling | 🟠 In Scope | SSM, Selenium, API calls |
+| Agent Chain | 🟠 In Scope | GUARDIAN→SCOUT→SHERLOCK→... |
+
+---
+
 
 ## Technology Stack
 

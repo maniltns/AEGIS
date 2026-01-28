@@ -10,15 +10,15 @@ services:
     image: redis/redis-stack:latest
     container_name: aegis-redis
     ports:
-      - "127.0.0.1:6379:6379"  # Bind to localhost only
-      - "127.0.0.1:8001:8001"  # RedisInsight UI - localhost only
+      - "127.0.0.1:6379:6379" # Bind to localhost only
+      - "127.0.0.1:8001:8001" # RedisInsight UI - localhost only
     volumes:
       - redis_data:/data
     environment:
       - REDIS_ARGS=--appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-aegis2026secure}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aegis2026secure}", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aegis2026secure}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -28,7 +28,6 @@ services:
       - "com.aegis.security=high"
       - "com.aegis.gdpr=pii-cache"
       - "com.aegis.backup=required"
-
 
   # n8n Workflow Orchestration
   n8n:
@@ -56,9 +55,44 @@ services:
     networks:
       - aegis-network
 
+  # 🧠 AEGIS RAG Service - Intelligent Knowledge Retrieval
+  rag-service:
+    build:
+      context: ../rag-service
+      dockerfile: Dockerfile
+    container_name: aegis-rag
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - TITAN_MODEL_ID=${TITAN_MODEL_ID:-amazon.titan-embed-text-v2:0}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250514}
+      - CHROMA_PERSIST_DIR=/data/chromadb
+      - TOP_K_RESULTS=5
+      - SIMILARITY_THRESHOLD=0.7
+    volumes:
+      - chromadb_data:/data/chromadb
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aegis-network
+    labels:
+      - "com.aegis.component=rag"
+      - "com.aegis.ai.embedding=titan-v2"
+      - "com.aegis.ai.reasoning=claude-sonnet"
+
 volumes:
   redis_data:
   n8n_data:
+  chromadb_data:
+
 
 networks:
   aegis-network:
