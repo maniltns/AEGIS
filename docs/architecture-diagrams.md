@@ -20,172 +20,318 @@ This document contains Draw.io compatible XML and Mermaid diagrams for the AEGIS
 
 ## Layered Architecture
 
-> **Inspired by:** Enterprise AI Platform Reference Architecture
-
-### Legend
-
-| Color | Status |
-|-------|--------|
-| 🟢 **Green** | Configuration Only - No Code Changes |
-| 🟠 **Orange** | In Scope - Code Changes Required |
-| ⚪ **Gray** | Currently Not Considered |
-| 🔵 **Blue** | New Changes / Future Enhancement |
+> **Enterprise AI Platform Architecture** | AEGIS v1.2
 
 ---
 
-### Mermaid Diagram
+### Technology Stack Overview
 
 ```mermaid
 graph TB
-    subgraph L1["Layer 1: ServiceNow & Collaboration"]
+    subgraph TECH["🏢 AEGIS Technology Stack"]
         direction LR
-        subgraph L1_SNOW["📋 ServiceNow Portal"]
-            USERS["👤 Users & Groups"]
-            SESSION["📱 Session Mgmt"]
-            INCIDENT["🎫 Incident View"]
-        end
-        subgraph L1_COLLAB["💬 MS Teams Interface"]
-            CHAT["💬 Chat Interface"]
-            CARDS["🃏 Adaptive Cards"]
-            APPROVAL["✅ Approval Buttons"]
-        end
-        subgraph L1_ADMIN["🔧 Admin Panel"]
-            N8N_UI["n8n Console"]
-            REDIS_UI["RedisInsight"]
-            CONFIG["⚙️ Configuration"]
-        end
+        T1["☁️ AWS Cloud"]
+        T2["🔄 n8n"]
+        T3["🧠 OpenAI"]
+        T4["🤖 Anthropic"]
+        T5["📦 Redis"]
+        T6["🔍 ChromaDB"]
+        T7["📋 ServiceNow"]
+        T8["💬 MS Teams"]
     end
-
-    subgraph L2["Layer 2: n8n Pipelines"]
-        direction LR
-        subgraph L2_CONNECTORS["🔗 Pipeline Connectors"]
-            SNOW_CONN["📋 ServiceNow<br/>Connector"]
-            TEAMS_CONN["💬 Teams<br/>Webhook"]
-            HTTP_CONN["🌐 HTTP<br/>Nodes"]
-        end
-        subgraph L2_PIPELINES["⚙️ Core Pipelines"]
-            STORM_PIPE["🛡️ Storm Shield<br/>Pipeline"]
-            TRIAGE_PIPE["🕵️ Master Triage<br/>Pipeline"]
-            CASE_PIPE["🌉 Case→Incident<br/>Pipeline"]
-        end
-        subgraph L2_TOOLS["🔧 Tool Calling"]
-            PII_TOOL["🔒 PII Scrubber"]
-            KB_TOOL["📚 KB Search"]
-            FUNC_CALL["⚡ Function<br/>Calling"]
-        end
-    end
-
-    subgraph L3["Layer 3: Middleware"]
-        direction LR
-        subgraph L3_ACCESS["🔐 Access Control"]
-            AAD["🔑 Azure AD<br/>SSO"]
-            RBAC["👥 Role-Based<br/>Access"]
-            KILLSWITCH["🛑 Kill Switch<br/>Gate"]
-        end
-        subgraph L3_DATA["📊 Data Sources & External Connectors"]
-            SNOW_API["📋 ServiceNow<br/>REST API"]
-            REDIS_CONN["📦 Redis<br/>Connection"]
-            SSM_CONN["🔧 AWS SSM"]
-            ARS_CONN["🔐 ARS Portal"]
-            OPERA_CONN["🏨 Opera PMS"]
-        end
-    end
-
-    subgraph L4["Layer 4: AI Engine Layer"]
-        direction LR
-        subgraph L4_RAG["🧠 RAG Engine"]
-            DOC_PARSE["📄 Document<br/>Parser"]
-            EMBEDDING["🔢 Embedding<br/>(Titan V2)"]
-            CHUNKING["✂️ Chunking"]
-            INDEXING["📇 Indexing"]
-            AUDIT_TRAIL["📝 Audit Trail"]
-            
-            QUERY_ROUTE["🔀 Query<br/>Routing"]
-            RAG_PROMPT["💭 RAG Prompt<br/>Builder"]
-            RERANK["📊 Retrieval<br/>Reranking"]
-            KB_FUSION["🔗 Knowledge<br/>Fusion"]
-            CONTENT_GEN["📝 Content<br/>Generation"]
-            
-            RAG_MEM["🧠 RAG Memory"]
-            MULTIMODAL["🖼️ Multi-Modal<br/>Support"]
-            RAG_CHAIN["⛓️ RAG Chain"]
-            FASTAPI["🚀 Pipeline Server<br/>(FastAPI)"]
-        end
-
-        KNOWLEDGE["💾 Knowledge<br/>Store<br/>(ChromaDB)"]
-        AUDIT_LOG["📊 Audit<br/>Logging"]
-
-        subgraph L4_AGENT["🤖 Agent Engine"]
-            TASK_PLAN["📋 Task<br/>Planning"]
-            TASK_EXEC["⚡ Task<br/>Execution"]
-            DECISION["🎯 Decision<br/>Engine"]
-            AGENT_MEM["🧠 Agent<br/>Memory"]
-            
-            STATE_MGMT["📊 State<br/>Management"]
-            MULTI_AGENT["🤝 Multi-Agent<br/>Orchestration"]
-            WORKFLOWS["🔄 Multi-step<br/>Workflows"]
-            TOOL_CALL["🔧 Tool<br/>Calling"]
-            
-            AGENT_CHAIN["⛓️ Agent Chain"]
-        end
-    end
-
-    subgraph L5["Layer 5: LLM Inferencing & Observability"]
-        direction LR
-        subgraph L5_OBS["📊 Observability"]
-            LLM_OBS["👁️ LLM<br/>Observability"]
-            LLMOPS["⚙️ LLMOps<br/>- Model Registry<br/>- Config Store"]
-        end
-        subgraph L5_ENDPOINTS["🔌 LLM Endpoints"]
-            BEDROCK["☁️ AWS<br/>Bedrock"]
-            ANTHROPIC["🤖 Anthropic<br/>Claude"]
-            OPENAI["🧠 OpenAI<br/>GPT-4o"]
-            TITAN["📐 Titan<br/>Embeddings"]
-        end
-    end
-
-    %% External Integrations
-    subgraph EXTERNAL["📡 External Integrations"]
-        SERVICENOW["📋 ServiceNow<br/>ITSM"]
-        SPLUNK["📊 Splunk<br/>Monitoring"]
-    end
-
-    %% Layer Connections
-    L1 --> L2
-    L2 --> L3
-    L3 --> L4
-    L4 --> L5
     
-    %% External connections
-    L4_RAG --> KNOWLEDGE
-    L4_AGENT --> AUDIT_LOG
-    AUDIT_LOG --> SERVICENOW
-    L5_OBS --> SPLUNK
-
-    %% Styling
-    classDef configOnly fill:#4CAF50,stroke:#2E7D32,color:#fff
-    classDef inScope fill:#FF9800,stroke:#E65100,color:#fff
-    classDef notConsidered fill:#9E9E9E,stroke:#616161,color:#fff
-    classDef newChange fill:#2196F3,stroke:#1565C0,color:#fff
-    classDef future fill:#fff,stroke:#2196F3,stroke-width:2px,color:#2196F3
-    
-    class STORM_PIPE,TRIAGE_PIPE,CASE_PIPE,PII_TOOL configOnly
-    class DOC_PARSE,EMBEDDING,CHUNKING,INDEXING,QUERY_ROUTE,RAG_PROMPT,RERANK,FASTAPI inScope
-    class MULTIMODAL,KB_FUSION,CONTENT_GEN future
-    class TASK_PLAN,TASK_EXEC,DECISION,STATE_MGMT,MULTI_AGENT,WORKFLOWS,TOOL_CALL inScope
+    style TECH fill:#1a1a2e,stroke:#16213e,color:#fff
+    style T1 fill:#FF9900,stroke:#cc7a00,color:#fff
+    style T2 fill:#EA4B71,stroke:#c23a5a,color:#fff
+    style T3 fill:#412991,stroke:#31206d,color:#fff
+    style T4 fill:#D97757,stroke:#b85f42,color:#fff
+    style T5 fill:#DC382D,stroke:#b32d24,color:#fff
+    style T6 fill:#00A86B,stroke:#008555,color:#fff
+    style T7 fill:#78BE20,stroke:#5a9216,color:#fff
+    style T8 fill:#5558AF,stroke:#40428a,color:#fff
 ```
 
 ---
 
-### Layer Descriptions
+### Legend
 
-| Layer | Components | Scaling | Purpose |
-|-------|-----------|---------|---------|
-| **Layer 1: UI** | ServiceNow Portal, MS Teams, Admin Panel | Horizontal | User interactions, session management |
-| **Layer 2: Pipelines** | n8n Workflows, Connectors, Tool Calling | Horizontal | Pipeline orchestration, RAG pipelines |
-| **Layer 3: Middleware** | Azure AD, Data Connectors, Kill Switch | Horizontal | Access control, external data sources |
-| **Layer 4: AI Engine** | RAG Engine + Agent Engine | Hybrid | Core AI processing, embeddings, reasoning |
-| **Layer 5: LLM** | Bedrock, Anthropic, OpenAI, Titan | Model-specific + Load Balancing | LLM inference, observability |
+| Color | Status | Description |
+|-------|--------|-------------|
+| 🟢 Green | Configuration Only | No code changes required |
+| 🟠 Orange | In Scope | Active development |
+| ⚪ Gray | Not Considered | Out of current scope |
+| 🔵 Blue | Future Enhancement | Planned for later phases |
+
+---
+
+### Complete Layered Architecture
+
+```mermaid
+graph TB
+    %% ═══════════════════════════════════════════════════════════════
+    %% LAYER 1: PRESENTATION & COLLABORATION
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph L1["🖥️ LAYER 1: Presentation & Collaboration"]
+        direction LR
+        
+        subgraph SNOW_UI["📋 ServiceNow"]
+            S_USERS["👤 Users & Groups"]
+            S_SESSION["🔐 Sessions"]
+            S_INCIDENT["🎫 Incident Portal"]
+            S_AGENT["👨‍💻 Agent Workspace"]
+        end
+        
+        subgraph TEAMS_UI["💬 Microsoft Teams"]
+            T_CHAT["💬 Chat Interface"]
+            T_CARDS["🃏 Adaptive Cards"]
+            T_APPROVE["✅ Approval Actions"]
+            T_NOTIFY["🔔 Notifications"]
+        end
+        
+        subgraph ADMIN_UI["🔧 Admin Console"]
+            A_N8N["🔄 n8n Dashboard"]
+            A_REDIS["📊 RedisInsight"]
+            A_CONFIG["⚙️ Configuration"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% LAYER 2: ORCHESTRATION (n8n)
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph L2["🔄 LAYER 2: n8n Orchestration Engine"]
+        direction LR
+        
+        subgraph N8N_CONN["🔗 Connectors"]
+            NC_SNOW["📋 ServiceNow<br/>REST Connector"]
+            NC_TEAMS["💬 Teams<br/>Webhook"]
+            NC_HTTP["🌐 HTTP/REST<br/>Nodes"]
+            NC_CODE["💻 Code<br/>Nodes"]
+        end
+        
+        subgraph N8N_PIPE["⚙️ Core Workflows"]
+            NP_STORM["🛡️ Storm Shield<br/><i>Deduplication</i>"]
+            NP_TRIAGE["🕵️ Master Triage<br/><i>AI Classification</i>"]
+            NP_CASE["🌉 Case→Incident<br/><i>Conversion</i>"]
+            NP_KILL["🛑 Kill Switch<br/><i>Governance</i>"]
+        end
+        
+        subgraph N8N_TOOLS["🧰 Tools & Functions"]
+            NT_PII["🔒 PII Scrubber"]
+            NT_KB["📚 KB Search"]
+            NT_RAG["🧠 RAG Query"]
+            NT_SSM["🔧 AWS SSM"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% LAYER 3: MIDDLEWARE & ACCESS CONTROL
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph L3["🔐 LAYER 3: Middleware & Access Control"]
+        direction LR
+        
+        subgraph L3_AUTH["🔑 Identity & Access"]
+            AUTH_AAD["🔑 Azure AD<br/>SSO / MFA"]
+            AUTH_RBAC["👥 RBAC<br/>Role-Based Access"]
+            AUTH_KILL["🛑 Kill Switch<br/>Gate"]
+        end
+        
+        subgraph L3_INTEGRATIONS["🔌 External Integrations"]
+            INT_SNOW["📋 ServiceNow<br/>Table API"]
+            INT_REDIS["📦 Redis Stack<br/>State Store"]
+            INT_SSM["☁️ AWS SSM<br/>Remote Exec"]
+            INT_ARS["🔐 ARS Portal<br/>Identity Mgmt"]
+            INT_OPERA["🏨 Oracle Opera<br/>PMS API"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% LAYER 4: AI ENGINE (RAG + AGENTS)
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph L4["🧠 LAYER 4: AI Engine"]
+        direction TB
+        
+        subgraph L4_RAG["🧠 RAG Engine (FastAPI)"]
+            direction LR
+            subgraph RAG_INGEST["📥 Ingestion"]
+                RI_PARSE["📄 Document Parser"]
+                RI_CHUNK["✂️ Chunking"]
+                RI_EMBED["🔢 Titan V2<br/>Embeddings"]
+                RI_INDEX["📇 Vector Indexing"]
+            end
+            
+            subgraph RAG_RETRIEVE["🔍 Retrieval"]
+                RR_ROUTE["🔀 Query Router"]
+                RR_SEARCH["🔎 Semantic Search"]
+                RR_RERANK["📊 Reranking"]
+                RR_FUSE["🔗 Knowledge Fusion"]
+            end
+            
+            subgraph RAG_GEN["💬 Generation"]
+                RG_PROMPT["💭 Prompt Builder"]
+                RG_CONTEXT["📋 Context Assembly"]
+                RG_LLM["🧠 LLM Call"]
+                RG_OUTPUT["📝 Response"]
+            end
+        end
+        
+        subgraph L4_STORE["💾 Knowledge Store"]
+            KS_CHROMA["🔍 ChromaDB<br/>Vector Database"]
+            KS_KB["📚 KB Articles"]
+            KS_TICKETS["🎫 Historical Tickets"]
+            KS_SOP["📋 SOPs"]
+        end
+        
+        subgraph L4_AGENT["🤖 Agent Engine (n8n)"]
+            direction LR
+            subgraph AGENT_CORE["⚙️ Core Agents"]
+                AG_GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
+                AG_SCOUT["🔍 SCOUT<br/>Enrichment"]
+                AG_SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
+            end
+            
+            subgraph AGENT_EXEC["⚡ Execution Agents"]
+                AG_ROUTER["🚦 ROUTER<br/>Assignment"]
+                AG_JANITOR["🧹 JANITOR<br/>Remediation"]
+                AG_ARBITER["⚖️ ARBITER<br/>Governance"]
+            end
+            
+            subgraph AGENT_NOTIFY["📢 Communication"]
+                AG_HERALD["📢 HERALD<br/>Notifications"]
+                AG_SCRIBE["📝 SCRIBE<br/>Audit Log"]
+                AG_BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
+            end
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% LAYER 5: LLM INFERENCING & OBSERVABILITY
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph L5["☁️ LAYER 5: LLM Inferencing & Observability"]
+        direction LR
+        
+        subgraph L5_LLM["🧠 LLM Endpoints"]
+            LLM_OPENAI["🧠 OpenAI<br/>GPT-4o / 4o-mini"]
+            LLM_CLAUDE["🤖 Anthropic<br/>Claude Sonnet 4.5"]
+            LLM_BEDROCK["☁️ AWS Bedrock<br/>Titan / Claude"]
+            LLM_TITAN["📐 Amazon Titan<br/>Text Embeddings V2"]
+        end
+        
+        subgraph L5_OBS["📊 Observability"]
+            OBS_METRICS["📈 Metrics<br/>Latency, Tokens"]
+            OBS_LOGS["📋 Audit Logs<br/>7-Year Retention"]
+            OBS_ALERTS["🚨 Alerts<br/>Accuracy, Drift"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% AWS CLOUD INFRASTRUCTURE
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph AWS["☁️ AWS Cloud Infrastructure"]
+        direction LR
+        
+        subgraph AWS_COMPUTE["💻 Compute"]
+            EC2["🖥️ EC2<br/>t3.large"]
+            DOCKER["🐳 Docker<br/>Containers"]
+        end
+        
+        subgraph AWS_SERVICES["🔧 Services"]
+            AWS_SSM2["📡 Systems Manager<br/>Run Command"]
+            AWS_SECRETS["🔐 Secrets Manager"]
+            AWS_KMS["🔑 KMS<br/>Encryption"]
+        end
+        
+        subgraph AWS_NETWORK["🌐 Network"]
+            VPC["🔒 VPC<br/>Private Subnet"]
+            ALB["⚖️ ALB<br/>Load Balancer"]
+            WAF["🛡️ WAF<br/>Firewall"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% EXTERNAL SYSTEMS
+    %% ═══════════════════════════════════════════════════════════════
+    subgraph EXTERNAL["🌐 External Systems"]
+        EXT_SNOW["📋 ServiceNow<br/>Cloud Instance"]
+        EXT_TEAMS["💬 MS Teams<br/>Tenant"]
+        EXT_AAD["🔑 Azure AD<br/>Identity"]
+        EXT_SPLUNK["📊 Splunk<br/>Monitoring"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════
+    L1 ==> L2
+    L2 ==> L3
+    L3 ==> L4
+    L4 ==> L5
+    
+    L2 --> AWS
+    L4_STORE --> L4_RAG
+    L4_RAG --> L5_LLM
+    L4_AGENT --> L4_STORE
+    
+    AWS --> EXTERNAL
+    L5_OBS --> EXT_SPLUNK
+    
+    %% ═══════════════════════════════════════════════════════════════
+    %% STYLING
+    %% ═══════════════════════════════════════════════════════════════
+    classDef layer1 fill:#E3F2FD,stroke:#1976D2,color:#0D47A1
+    classDef layer2 fill:#FCE4EC,stroke:#C2185B,color:#880E4F
+    classDef layer3 fill:#FFF3E0,stroke:#E65100,color:#BF360C
+    classDef layer4 fill:#E8F5E9,stroke:#388E3C,color:#1B5E20
+    classDef layer5 fill:#F3E5F5,stroke:#7B1FA2,color:#4A148C
+    classDef aws fill:#FF9900,stroke:#cc7a00,color:#fff
+    classDef external fill:#ECEFF1,stroke:#607D8B,color:#263238
+    
+    class L1 layer1
+    class L2 layer2
+    class L3 layer3
+    class L4 layer4
+    class L5 layer5
+    class AWS aws
+    class EXTERNAL external
+```
+
+---
+
+### Layer Summary
+
+| Layer | Technology | Components | Scaling |
+|-------|------------|------------|---------|
+| **L1: Presentation** | ServiceNow, Teams, n8n UI | User interfaces, notifications | Horizontal |
+| **L2: Orchestration** | **n8n** (self-hosted) | Workflows, connectors, tools | Horizontal |
+| **L3: Middleware** | Azure AD, Redis, APIs | Auth, state, integrations | Horizontal |
+| **L4: AI Engine** | **FastAPI**, ChromaDB | RAG, 9 agents, vector store | Hybrid |
+| **L5: LLM** | **OpenAI**, **Claude**, **Titan** | Inference, embeddings | Load Balanced |
+| **Infrastructure** | **AWS** (EC2, SSM, Secrets) | Compute, networking | Auto-scaling |
+
+---
+
+### Technology Brand Colors
+
+```mermaid
+graph LR
+    subgraph BRANDS["Technology Stack"]
+        AWS_B["☁️ AWS<br/>#FF9900"]
+        N8N_B["🔄 n8n<br/>#EA4B71"]
+        OPENAI_B["🧠 OpenAI<br/>#412991"]
+        ANTHROPIC_B["🤖 Anthropic<br/>#D97757"]
+        REDIS_B["📦 Redis<br/>#DC382D"]
+        CHROMA_B["🔍 ChromaDB<br/>#00A86B"]
+        SNOW_B["📋 ServiceNow<br/>#78BE20"]
+        TEAMS_B["💬 Teams<br/>#5558AF"]
+    end
+    
+    style AWS_B fill:#FF9900,stroke:#cc7a00,color:#fff
+    style N8N_B fill:#EA4B71,stroke:#c23a5a,color:#fff
+    style OPENAI_B fill:#412991,stroke:#31206d,color:#fff
+    style ANTHROPIC_B fill:#D97757,stroke:#b85f42,color:#fff
+    style REDIS_B fill:#DC382D,stroke:#b32d24,color:#fff
+    style CHROMA_B fill:#00A86B,stroke:#008555,color:#fff
+    style SNOW_B fill:#78BE20,stroke:#5a9216,color:#fff
+    style TEAMS_B fill:#5558AF,stroke:#40428a,color:#fff
+```
 
 ---
 
@@ -193,37 +339,35 @@ graph TB
 
 #### 🧠 RAG Engine Components
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| Document Parser | 🟠 In Scope | Parse KB articles, tickets, SOPs |
-| Embedding (Titan V2) | 🟠 In Scope | Amazon Titan Text Embeddings V2 |
-| Chunking | 🟠 In Scope | Split documents for vector storage |
-| Indexing | 🟠 In Scope | ChromaDB vector indexing |
-| Query Routing | 🟠 In Scope | Route to appropriate KB/ticket collection |
-| RAG Prompt Builder | 🟠 In Scope | Construct context-rich prompts |
-| Retrieval Reranking | 🟠 In Scope | Score and rerank retrieved docs |
-| Knowledge Fusion | 🔵 Future | Combine multiple knowledge sources |
-| Content Generation | 🔵 Future | Generate resolutions from KB |
-| RAG Memory | 🟠 In Scope | Conversation/session context |
-| Multi-Modal Support | 🔵 Future | Image/attachment processing |
-| RAG Chain | 🟠 In Scope | Sequential RAG steps |
-| Pipeline Server | 🟠 In Scope | FastAPI `/api/v1/analyze` |
+| Component | Status | Technology | Description |
+|-----------|--------|------------|-------------|
+| Document Parser | 🟠 Active | Python | Parse KB articles, tickets, SOPs |
+| Embedding | 🟠 Active | **Amazon Titan V2** | 1536-dim embeddings |
+| Chunking | 🟠 Active | LangChain | 1000 tokens, 200 overlap |
+| Indexing | 🟠 Active | **ChromaDB** | Vector storage |
+| Query Routing | 🟠 Active | Custom | Route to collections |
+| Semantic Search | 🟠 Active | **ChromaDB** | Similarity search |
+| Reranking | 🟠 Active | Python | Score and filter |
+| Prompt Builder | 🟠 Active | Jinja2 | Context assembly |
+| LLM Call | 🟠 Active | **Claude Sonnet 4.5** | Reasoning |
+| Pipeline Server | 🟠 Active | **FastAPI** | `/api/v1/analyze` |
 
 #### 🤖 Agent Engine Components
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| Task Planning | 🟠 In Scope | SHERLOCK → ROUTER → JANITOR sequencing |
-| Task Execution | 🟠 In Scope | n8n workflow execution |
-| Decision Engine | 🟠 In Scope | ARBITER governance decisions |
-| Agent Memory | 🟠 In Scope | Redis state for agents |
-| State Management | 🟠 In Scope | Redis `gov:*` keys |
-| Multi-Agent Orchestration | 🟠 In Scope | 9-agent swarm coordination |
-| Multi-step Workflows | 🟠 In Scope | Complex workflow chains |
-| Tool Calling | 🟠 In Scope | SSM, Selenium, API calls |
-| Agent Chain | 🟠 In Scope | GUARDIAN→SCOUT→SHERLOCK→... |
+| Agent | Status | Workflow | Description |
+|-------|--------|----------|-------------|
+| GUARDIAN | 🟠 Active | storm-shield.json | Deduplication |
+| SCOUT | 🟠 Active | master-triage.json | Enrichment |
+| SHERLOCK | 🟠 Active | master-triage.json | AI Triage |
+| ROUTER | 🟠 Active | master-triage.json | Assignment |
+| ARBITER | 🟠 Active | kill-switch.json | Governance |
+| HERALD | 🟠 Active | master-triage.json | Notifications |
+| SCRIBE | 🟠 Active | All workflows | Audit logging |
+| BRIDGE | 🟠 Active | case-to-incident.json | Case conversion |
+| JANITOR | 🟠 Active | janitor-*.json | Auto-remediation |
 
 ---
+
 
 
 ## Technology Stack
