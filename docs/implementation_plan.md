@@ -22,7 +22,9 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 ## 📊 Solution Comparison: Why AEGIS?
 
 ### Feature Comparison Matrix
+
 |                           ServiceNow                            |    ITC   |
+|------------|----------------|-------------------|---------------|----------|
 | Capability | ServiceNow OOB | NowAssist (GenAI) | Virtual Agent | 🛡️ AEGIS |
 |------------|----------------|-------------------|---------------|----------|
 | **AI-Powered Triage** | ❌ Rule-based | ✅ GenAI summary | ⚠️ Scripted | ✅ Multi-agent swarm |
