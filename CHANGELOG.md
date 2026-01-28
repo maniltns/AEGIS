@@ -16,7 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-01-28
+
+### Added - Enterprise Readiness
+- **📊 Executive Pack** - CXO-ready documentation
+  - `executive-pack/executive-brief.md` - Vision, Before/After, 90-day roadmap
+  - `executive-pack/operating-model.md` - RACI, ownership, governance
+  - `executive-pack/roi-dashboard.md` - Metrics, TCO, business value
+  - `executive-pack/path-to-production.md` - Gate criteria, KPIs
+- **🏛️ EA Pack** - Architecture Review Board documentation
+  - `ea-pack/ea-alignment.md` - ITIL mapping, capability map, ADRs
+  - `ea-pack/risk-register.md` - Comprehensive risk register (18 risks)
+- **3-Tier Documentation Structure** - Executive, EA, Technical packs
+
+### Changed
+- Simplified naming: "AEGIS – Autonomous IT Operations Platform"
+- Architecture presented as 3 planes: Control, Intelligence, Action
+- README reorganized with 3-tier documentation links
+
+---
+
 ## [1.1.1] - 2026-01-28
+
 
 ### Added
 - **🧠 Custom RAG Service** - Intelligent Knowledge Retrieval

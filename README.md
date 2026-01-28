@@ -178,20 +178,39 @@ graph LR
 
 ## Documentation
 
+### 📊 Executive Pack (CXO/Stakeholders)
+
 | Document | Description |
 |----------|-------------|
-| [📘 TAD (Technical Architecture)](docs/TAD.md) | System specifications, diagrams |
-| [📗 Product Documentation](docs/product-documentation.md) | Features, workflows, user guides |
-| [🧠 RAG Service](docs/rag-service.md) | **NEW** - Custom RAG with Titan + Claude |
-| [📋 Implementation Plan](docs/implementation_plan.md) | Full technical specification |
-| [🎨 Architecture Diagrams](docs/architecture-diagrams.md) | Mermaid/Draw.io diagrams |
-| [🎬 Demo Script](docs/demo-script.md) | Workshop demonstration guide |
-| [📖 User Stories](docs/user-stories.md) | Agile backlog |
-| [📊 Sprint Board](docs/sprint-backlog.md) | Current sprint items |
-| [🤝 Contributing](CONTRIBUTING.md) | How to contribute |
-| [📝 Changelog](CHANGELOG.md) | Version history |
+| [Executive Brief](docs/executive-pack/executive-brief.md) | **START HERE** - Vision, Before/After, 90-day roadmap |
+| [Operating Model](docs/executive-pack/operating-model.md) | Ownership, RACI, governance processes |
+| [ROI Dashboard](docs/executive-pack/roi-dashboard.md) | Metrics, TCO, business value |
+| [Path to Production](docs/executive-pack/path-to-production.md) | Gate criteria, KPIs, approvals |
+
+### 🏛️ EA Pack (Architecture Review Board)
+
+| Document | Description |
+|----------|-------------|
+| [EA Alignment](docs/ea-pack/ea-alignment.md) | ITIL mapping, capability map, ADRs |
+| [Risk Register](docs/ea-pack/risk-register.md) | 18 risks with mitigations |
+| [TAD](docs/TAD.md) | Technical Architecture Document |
+| [Architecture Diagrams](docs/architecture-diagrams.md) | 5-layer Mermaid diagrams |
+
+### 🔧 Technical Pack (Engineers)
+
+| Document | Description |
+|----------|-------------|
+| [Implementation Plan](docs/implementation_plan.md) | Full technical specification |
+| [RAG Service](docs/rag-service.md) | Custom RAG with Titan + Claude |
+| [Product Documentation](docs/product-documentation.md) | Features, workflows, user guides |
+| [Demo Script](docs/demo-script.md) | Workshop demonstration guide |
+| [User Stories](docs/user-stories.md) | Agile backlog |
+| [Sprint Board](docs/sprint-backlog.md) | Current sprint items |
+| [Contributing](CONTRIBUTING.md) | How to contribute |
+| [Changelog](CHANGELOG.md) | Version history |
 
 ---
+
 
 
 
