@@ -24,7 +24,22 @@ This document contains Draw.io compatible XML and Mermaid diagrams for the AEGIS
 
 ---
 
-### Technology Stack Overview
+### Professional Architecture Diagrams
+
+#### 5-Layer Enterprise Architecture (with Technology Logos)
+
+![AEGIS 5-Layer Architecture](images/layered-architecture.png)
+
+---
+
+#### Technology Stack (with Brand Logos)
+
+![AEGIS Technology Stack](images/technology-stack.png)
+
+---
+
+### Technology Stack Overview (Mermaid)
+
 
 ```mermaid
 graph TB
