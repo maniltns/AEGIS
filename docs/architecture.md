@@ -1,6 +1,8 @@
-# AEGIS Architecture Overview
+# 🛡️ AEGIS Architecture Overview
 
----
+**Project:** AEGIS - Autonomous Expert for Governance, Intelligence & Swarming  
+**Client:** Accor Hotels
+
 
 ## System Context Diagram
 

@@ -16,7 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-01-28
+
+### Added
+- **Architecture Diagrams** - Comprehensive Mermaid diagrams
+  - 6-Layer Architecture diagram (Presentation to Infrastructure)
+  - Technology Stack Architecture
+  - Security Zones Deployment diagram  
+  - Data Flow Architecture
+  - Component Interaction Matrix
+  - Standalone `architecture-diagrams.md` with Draw.io instructions
+
+### Changed
+- Updated `implementation_plan.md` with 5 new architecture sections (3.4-3.8)
+- Enhanced `docs/architecture.md` with detailed diagrams
+
+---
+
 ## [1.1.0] - 2026-01-27
+
 
 ### Added
 - **Kill Switch Enhancement** - Multi-level verification with Azure AD + PIN

@@ -144,7 +144,7 @@ docker exec aegis-redis redis-cli -a $REDIS_PASSWORD SET gov:mode assist
 ## Project Structure
 
 ```
-AISwarnOps/
+aegis/
 ├── README.md                      # This file
 ├── CONTRIBUTING.md                # Contribution guidelines
 ├── CHANGELOG.md                   # Version history
@@ -169,6 +169,7 @@ AISwarnOps/
 │
 ├── docs/
 │   ├── implementation_plan.md     # Technical specification
+│   ├── architecture-diagrams.md   # Mermaid/Draw.io diagrams
 │   ├── demo-script.md             # Demo guide
 │   ├── user-stories.md            # Product backlog
 │   ├── sprint-backlog.md          # Current sprint
@@ -176,6 +177,7 @@ AISwarnOps/
 │
 └── campaign/                      # Marketing assets
 ```
+
 
 ---
 
