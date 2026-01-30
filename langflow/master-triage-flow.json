@@ -1,0 +1,198 @@
+{
+    "name": "AEGIS Master Triage Pipeline",
+    "description": "Main incident triage flow using CrewAI agents",
+    "version": "1.0.0",
+    "nodes": [
+        {
+            "id": "servicenow_webhook",
+            "type": "webhook",
+            "position": {
+                "x": 100,
+                "y": 200
+            },
+            "data": {
+                "name": "ServiceNow Incident Webhook",
+                "endpoint": "/incident",
+                "method": "POST"
+            }
+        },
+        {
+            "id": "parse_incident",
+            "type": "text_parser",
+            "position": {
+                "x": 300,
+                "y": 200
+            },
+            "data": {
+                "name": "Parse Incident",
+                "template": "Incident: {number}\nDescription: {short_description}\nCategory: {category}\nCaller: {caller_id}"
+            }
+        },
+        {
+            "id": "check_killswitch",
+            "type": "api_request",
+            "position": {
+                "x": 500,
+                "y": 200
+            },
+            "data": {
+                "name": "Check Kill Switch",
+                "url": "http://aegis-api:8000/status",
+                "method": "GET"
+            }
+        },
+        {
+            "id": "killswitch_router",
+            "type": "conditional_router",
+            "position": {
+                "x": 700,
+                "y": 200
+            },
+            "data": {
+                "name": "Kill Switch Gate",
+                "condition": "{{operational}} == true"
+            }
+        },
+        {
+            "id": "storm_shield",
+            "type": "api_request",
+            "position": {
+                "x": 900,
+                "y": 100
+            },
+            "data": {
+                "name": "Storm Shield Check",
+                "url": "http://aegis-api:8000/webhook/incident",
+                "method": "POST",
+                "body_template": "{\"number\": \"{{number}}\", \"short_description\": \"{{short_description}}\"}"
+            }
+        },
+        {
+            "id": "crewai_triage",
+            "type": "custom_component",
+            "position": {
+                "x": 1100,
+                "y": 100
+            },
+            "data": {
+                "name": "CrewAI Agent Triage",
+                "component": "aegis_crew_triage",
+                "description": "9-agent crew for intelligent triage"
+            }
+        },
+        {
+            "id": "governance_gate",
+            "type": "conditional_router",
+            "position": {
+                "x": 1300,
+                "y": 100
+            },
+            "data": {
+                "name": "Confidence Gate",
+                "condition": "{{confidence}} >= 85"
+            }
+        },
+        {
+            "id": "auto_assign",
+            "type": "api_request",
+            "position": {
+                "x": 1500,
+                "y": 50
+            },
+            "data": {
+                "name": "Auto Assign Incident",
+                "url": "http://aegis-api:8000/assign",
+                "method": "POST"
+            }
+        },
+        {
+            "id": "human_review",
+            "type": "teams_notification",
+            "position": {
+                "x": 1500,
+                "y": 150
+            },
+            "data": {
+                "name": "Request Human Review",
+                "webhook": "{{TEAMS_WEBHOOK_URL}}",
+                "template": "Low confidence triage requires human review"
+            }
+        },
+        {
+            "id": "audit_log",
+            "type": "api_request",
+            "position": {
+                "x": 1700,
+                "y": 100
+            },
+            "data": {
+                "name": "Log to Audit Trail",
+                "url": "http://aegis-api:8000/audit",
+                "method": "POST"
+            }
+        },
+        {
+            "id": "killswitch_blocked",
+            "type": "response",
+            "position": {
+                "x": 700,
+                "y": 350
+            },
+            "data": {
+                "name": "Kill Switch Active Response",
+                "status_code": 503,
+                "body": "{\"error\": \"Kill switch active\"}"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "source": "servicenow_webhook",
+            "target": "parse_incident"
+        },
+        {
+            "source": "parse_incident",
+            "target": "check_killswitch"
+        },
+        {
+            "source": "check_killswitch",
+            "target": "killswitch_router"
+        },
+        {
+            "source": "killswitch_router",
+            "target": "storm_shield",
+            "condition": "true"
+        },
+        {
+            "source": "killswitch_router",
+            "target": "killswitch_blocked",
+            "condition": "false"
+        },
+        {
+            "source": "storm_shield",
+            "target": "crewai_triage"
+        },
+        {
+            "source": "crewai_triage",
+            "target": "governance_gate"
+        },
+        {
+            "source": "governance_gate",
+            "target": "auto_assign",
+            "condition": "high_confidence"
+        },
+        {
+            "source": "governance_gate",
+            "target": "human_review",
+            "condition": "low_confidence"
+        },
+        {
+            "source": "auto_assign",
+            "target": "audit_log"
+        },
+        {
+            "source": "human_review",
+            "target": "audit_log"
+        }
+    ]
+}

@@ -1,11 +1,12 @@
-# 🛡️ AEGIS - Autonomous Expert for Governance, Intelligence & Swarming
+# 🛡️ AEGIS - Autonomous IT Operations & Swarming Platform
 
-[![Version](https://img.shields.io/badge/Version-1.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.0-blue.svg)](CHANGELOG.md)
 [![Status](https://img.shields.io/badge/Status-POC-yellow.svg)]()
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
+[![Stack](https://img.shields.io/badge/Stack-CrewAI%20%2B%20LangFlow-purple.svg)]()
 
 **Client:** Accor Hotels  
-**Project:** Intelligent Triage System v1.1 (Enterprise Swarm Edition)  
+**Project:** Intelligent Triage System v2.0  
 **Tagline:** *"Your AI Shield Against Incident Chaos"*
 
 ---
@@ -13,12 +14,12 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [Key Benefits](#key-benefits)
+- [What's New in v2.0](#whats-new-in-v20)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
-- [Workflows](#workflows)
+- [Agent Roster](#agent-roster)
+- [API Reference](#api-reference)
 - [Documentation](#documentation)
-- [Contributing](#contributing)
 - [Changelog](#changelog)
 
 ---
@@ -27,262 +28,208 @@
 
 AEGIS transforms Accor's IT Service Management from reactive ticket queues into an intelligent, self-defending ecosystem. Supporting **5,500+ hotels across 110 countries**, AEGIS protects Accor's global service desk from alert storms, routes critical issues with contextual intelligence, and assembles expert swarms in seconds.
 
-### Why AEGIS?
-
-| vs Solution | 5-Year TCO | Savings | Key Advantage |
-|-------------|-----------|---------|---------------|
-| NowAssist | $655K | **88%** | No per-agent license |
-| Virtual Agent | $190K | **58%** | Full auto-remediation |
-| OOB ServiceNow | — | — | AI-powered triage |
-
----
-
-## Key Benefits
+### Key Benefits
 
 | Benefit | Metric | Description |
 |---------|--------|-------------|
 | 🚀 **Faster Triage** | <60 sec | vs 45 min manual |
 | 🛡️ **Alert Suppression** | 95% | Duplicate detection via Storm Shield |
 | 🔒 **Glass Box AI** | 100% | Every decision auditable |
-| 💰 **Cost Savings** | 88% | vs ServiceNow NowAssist |
+| 💰 **Cost Savings** | 79% | vs UiPath Agentic ($400K over 5 years) |
+
+---
+
+## What's New in v2.0
+
+### Stack Migration: n8n → CrewAI + LangFlow
+
+| Component | v1.x | v2.0 |
+|-----------|------|------|
+| Orchestration | n8n (fair-code) | **CrewAI (MIT)** |
+| Visual Pipelines | n8n UI | **LangFlow (MIT)** |
+| License Cost | $0-$40K/yr | **$0** |
+| Vendor Lock-in | Medium | **None** |
+
+### New Features
+
+- ✅ 9 CrewAI agents with full Python implementation
+- ✅ LangFlow visual pipeline builder
+- ✅ FastAPI webhook server
+- ✅ Enhanced RAG with ChromaDB
+- ✅ Complete governance API
 
 ---
 
 ## Quick Start
 
+### Prerequisites
+
+- Docker & Docker Compose
+- Python 3.11+
+- AWS Account (for Bedrock)
+- ServiceNow instance
+- MS Teams Webhook
+
+### Installation
+
 ```bash
-# 1. Clone and navigate
-cd d:\AI-Ops\AISwarnOps
+# Clone repository
+git clone https://github.com/accor/aegis-ops.git
+cd aegis-ops
 
-# 2. Setup environment
+# Configure environment
 cp .env.example .env
-cp docker/security-config.env.example docker/security-config.env
-# Edit files with your credentials
+nano .env  # Add your API keys
 
-# 3. Start Docker stack
+# Start the stack
 cd docker
 docker-compose up -d
 
-# 4. Initialize Redis governance
-./init-redis.sh
-# Or manually:
-docker exec aegis-redis redis-cli -a $REDIS_PASSWORD SET gov:killswitch true
-docker exec aegis-redis redis-cli -a $REDIS_PASSWORD SET gov:mode assist
-
-# 5. Access n8n
-# URL: http://localhost:5678
-# Login: admin / aegis2026
-
-# 6. Import workflows
-# Import all JSON files from /workflows folder (10 workflows)
+# Verify
+curl http://localhost:8000/health
 ```
+
+### Service URLs
+
+| Service | Port | URL |
+|---------|------|-----|
+| AEGIS API | 8000 | http://localhost:8000 |
+| LangFlow | 7860 | http://localhost:7860 |
+| RAG Service | 8100 | http://localhost:8100 |
+| RedisInsight | 8001 | http://localhost:8001 |
 
 ---
 
 ## Architecture
 
-### Multi-Agent Swarm (Mermaid)
-
-```mermaid
-graph TB
-    subgraph "🛡️ AEGIS Agent Swarm"
-        GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
-        SCOUT["🔍 SCOUT<br/>Enrichment"]
-        SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
-        ROUTER["🚦 ROUTER<br/>Assignment"]
-        ARBITER["⚖️ ARBITER<br/>Governance"]
-        HERALD["📢 HERALD<br/>Notification"]
-        SCRIBE["📝 SCRIBE<br/>Audit"]
-        BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
-        JANITOR["🧹 JANITOR<br/>Remediation"]
-    end
-    
-    GUARDIAN --> SCOUT
-    SCOUT --> SHERLOCK
-    SHERLOCK --> ROUTER
-    SHERLOCK -->|Auto-Fix| JANITOR
-    ROUTER --> ARBITER
-    JANITOR --> ARBITER
-    ARBITER -->|Approved| HERALD
-    ARBITER -->|Blocked| SCRIBE
-    HERALD --> SCRIBE
 ```
-
-### Technology Stack (Mermaid)
-
-```mermaid
-graph LR
-    subgraph "🖥️ User Interfaces"
-        TEAMS["MS Teams"]
-        SNOW_UI["ServiceNow"]
-    end
-
-    subgraph "🔄 Orchestration"
-        N8N["n8n Workflows"]
-    end
-
-    subgraph "🧠 Intelligence"
-        LLM["GPT-4o"]
-        PII["PII Scrubber"]
-    end
-
-    subgraph "💾 Data"
-        REDIS["Redis Stack"]
-        SNOW_DB["ServiceNow"]
-    end
-
-    subgraph "🏗️ Infrastructure"
-        EC2["AWS EC2"]
-        DOCKER["Docker"]
-    end
-
-    TEAMS --> N8N
-    SNOW_UI --> N8N
-    N8N --> LLM
-    N8N --> PII
-    N8N --> REDIS
-    N8N --> SNOW_DB
-    EC2 --> DOCKER
+┌─────────────────────────────────────────────────────────────────┐
+│                    AEGIS v2.0 Architecture                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Layer 5: LLM Inference                                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │   Claude    │  │   GPT-4o    │  │ AWS Titan   │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+│                                                                 │
+│  Layer 4: AI Engine                                             │
+│  ┌───────────────────────────────────────────────────────┐     │
+│  │  CrewAI (9 Agents)          │  RAG Service (FastAPI)  │     │
+│  └───────────────────────────────────────────────────────┘     │
+│                                                                 │
+│  Layer 3: Middleware (Redis, Azure AD, AWS SSM)                 │
+│  Layer 2: Orchestration (LangFlow, FastAPI)                     │
+│  Layer 1: Presentation (ServiceNow, MS Teams)                   │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
-
-### Technology Summary
-
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| **Orchestration** | n8n | Workflow automation |
-| **State** | Redis Stack | Deduplication, governance |
-| **AI** | GPT-4o | Triage, classification |
-| **ITSM** | ServiceNow | Tickets, KB, audit |
-| **Collab** | MS Teams | Notifications, approvals |
-| **Infra** | AWS EC2/Docker | Container hosting |
 
 ---
 
+## Agent Roster
 
-## Workflows
+| Agent | Role | Purpose |
+|-------|------|---------|
+| 🛡️ **GUARDIAN** | Storm Shield | Duplicate detection, alert storm suppression |
+| 🔍 **SCOUT** | Enrichment | Context gathering from CMDB, KB, history |
+| 🕵️ **SHERLOCK** | AI Triage | Classification, root cause, confidence scoring |
+| 🎯 **ROUTER** | Assignment | Skills matching, workload balancing |
+| ⚖️ **ARBITER** | Governance | Kill switch, thresholds, approvals |
+| 📢 **HERALD** | Notifications | Teams cards, swarm channel creation |
+| 📝 **SCRIBE** | Audit | Decision logging, compliance |
+| 🌉 **BRIDGE** | Case→Incident | Intelligent conversion |
+| 🧹 **JANITOR** | Remediation | Safe auto-fix for known issues |
 
-| Workflow | Agent | Description |
-|----------|-------|-------------|
-| `storm-shield.json` | 🛡️ GUARDIAN | Redis-based deduplication |
-| `kill-switch.json` | ⚖️ ARBITER | Basic governance toggle |
-| `kill-switch-verified.json` | ⚖️ ARBITER | **NEW** - Azure AD + PIN verification |
-| `kb-search.json` | 🔍 SCOUT | Knowledge base lookup |
-| `master-triage.json` | 🕵️ SHERLOCK | Full AI triage pipeline |
-| `case-to-incident.json` | 🌉 BRIDGE | Case → Incident conversion |
-| `ritm-finance.json` | 💰 | Hotel finance approval |
-| `janitor-auto-remediation.json` | 🧹 JANITOR | Script/portal automation |
-| `janitor-approval-handler.json` | 🧹 JANITOR | Human approval webhook |
-| `pii-scrubber.json` | 🔒 | **NEW** - GDPR PII anonymization |
+---
+
+## API Reference
+
+### Incident Processing
+
+```bash
+# Submit incident
+POST /webhook/incident
+{
+  "number": "INC0012345",
+  "short_description": "Cannot access Opera PMS",
+  "category": "Software"
+}
+```
+
+### Governance
+
+```bash
+# Kill switch (STOP all AI)
+POST /governance/killswitch
+{"action": "disable", "reason": "...", "operator": "admin@accor.com"}
+
+# Resume AI
+POST /governance/killswitch
+{"action": "enable", "reason": "...", "operator": "admin@accor.com"}
+```
 
 ---
 
 ## Documentation
 
-### 📊 Executive Pack (CXO/Stakeholders)
+### Executive Pack
+- [Executive Brief](docs/executive-pack/executive-brief.md)
+- [Operating Model](docs/executive-pack/operating-model.md)
+- [ROI Dashboard](docs/executive-pack/roi-dashboard.md)
+- [Path to Production](docs/executive-pack/path-to-production.md)
 
-| Document | Description |
-|----------|-------------|
-| [Executive Brief](docs/executive-pack/executive-brief.md) | **START HERE** - Vision, Before/After, 90-day roadmap |
-| [Operating Model](docs/executive-pack/operating-model.md) | Ownership, RACI, governance processes |
-| [ROI Dashboard](docs/executive-pack/roi-dashboard.md) | Metrics, TCO, business value |
-| [Path to Production](docs/executive-pack/path-to-production.md) | Gate criteria, KPIs, approvals |
+### EA Pack
+- [EA Alignment](docs/ea-pack/ea-alignment.md)
+- [Risk Register](docs/ea-pack/risk-register.md)
+- [CrewAI vs UiPath](docs/ea-pack/crewai-vs-uipath-comparison.md)
 
-### 🏛️ EA Pack (Architecture Review Board)
-
-| Document | Description |
-|----------|-------------|
-| [EA Alignment](docs/ea-pack/ea-alignment.md) | ITIL mapping, capability map, ADRs |
-| [Risk Register](docs/ea-pack/risk-register.md) | 18 risks with mitigations |
-| [TAD](docs/TAD.md) | Technical Architecture Document |
-| [Architecture Diagrams](docs/architecture-diagrams.md) | 5-layer Mermaid diagrams |
-
-### 🔧 Technical Pack (Engineers)
-
-| Document | Description |
-|----------|-------------|
-| [Implementation Plan](docs/implementation_plan.md) | Full technical specification |
-| [RAG Service](docs/rag-service.md) | Custom RAG with Titan + Claude |
-| [Product Documentation](docs/product-documentation.md) | Features, workflows, user guides |
-| [Demo Script](docs/demo-script.md) | Workshop demonstration guide |
-| [User Stories](docs/user-stories.md) | Agile backlog |
-| [Sprint Board](docs/sprint-backlog.md) | Current sprint items |
-| [Contributing](CONTRIBUTING.md) | How to contribute |
-| [Changelog](CHANGELOG.md) | Version history |
+### Technical Pack
+- [Setup Guide](docs/setup-guide.md)
+- [Architecture Diagrams](docs/architecture-diagrams.md)
+- [RAG Service](docs/rag-service.md)
 
 ---
-
-
-
 
 ## Project Structure
 
 ```
-aegis/
-├── README.md                      # This file
-├── CONTRIBUTING.md                # Contribution guidelines
-├── CHANGELOG.md                   # Version history
-├── .env.example                   # Environment template
-│
-├── docker/
-│   ├── docker-compose.yml         # Redis + n8n stack
-│   ├── init-redis.sh              # Governance init script
-│   └── security-config.env.example # Security settings template
-│
-├── workflows/                     # n8n workflow definitions
-│   ├── storm-shield.json          # Deduplication
-│   ├── kill-switch.json           # Basic governance
-│   ├── kill-switch-verified.json  # Enhanced with 2FA
-│   ├── kb-search.json             # KB lookup
-│   ├── master-triage.json         # Main triage pipeline
-│   ├── case-to-incident.json      # Case conversion
-│   ├── ritm-finance.json          # Finance approval
-│   ├── janitor-auto-remediation.json
-│   ├── janitor-approval-handler.json
-│   └── pii-scrubber.json          # GDPR compliance
-│
-├── docs/
-│   ├── implementation_plan.md     # Technical specification
-│   ├── architecture-diagrams.md   # Mermaid/Draw.io diagrams
-│   ├── demo-script.md             # Demo guide
-│   ├── user-stories.md            # Product backlog
-│   ├── sprint-backlog.md          # Current sprint
-│   └── architecture.md            # Architecture details
-│
-└── campaign/                      # Marketing assets
+aegis-ops/
+├── agents/                 # CrewAI agent definitions
+│   ├── crew.py            # 9 agents + crew orchestration
+│   └── tools/             # Agent tools
+│       ├── servicenow_tools.py
+│       ├── redis_tools.py
+│       ├── rag_tools.py
+│       └── teams_tools.py
+├── langflow/              # LangFlow pipeline configs
+│   ├── master-triage-flow.json
+│   └── storm-shield-flow.json
+├── rag-service/           # RAG API service
+├── docker/                # Docker configuration
+│   ├── docker-compose.yml
+│   └── Dockerfile.api
+├── docs/                  # Documentation
+└── api.py                 # FastAPI server
 ```
 
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+### v2.0.0 (January 30, 2026)
+- Migrated from n8n to CrewAI + LangFlow
+- Added 9 CrewAI agents with full Python implementation
+- Added LangFlow visual pipeline builder
+- $400K+ savings vs UiPath Agentic
 
 ---
 
-## Security & Compliance
+## License
 
-| Domain | Control |
-|--------|---------|
-| **Authentication** | Azure AD SSO + MFA |
-| **Authorization** | RBAC via AD Groups |
-| **Encryption** | TLS 1.3 in transit, AES at rest |
-| **PII Protection** | Automatic redaction before AI |
-| **Audit** | Full trail in ServiceNow |
-| **GDPR** | Article 5/17/30 compliant |
+MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
-## Endpoints
-
-| Service | URL | Purpose |
-|---------|-----|---------|
-| n8n | http://localhost:5678 | Workflow UI |
-| RedisInsight | http://localhost:8001 | Redis monitoring |
-
----
-
-## Support
-
-| Contact | Role |
-|---------|------|
-| Anilkumar MN | Project Owner |
-| AEGIS Team | Implementation |
-
----
-
-© 2026 AEGIS × Accor | Powered by n8n + Redis Stack + GPT-4o
+*Built with 🛡️ by the AEGIS Team*

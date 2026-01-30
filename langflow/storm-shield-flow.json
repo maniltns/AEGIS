@@ -1,0 +1,180 @@
+{
+    "name": "AEGIS Storm Shield Pipeline",
+    "description": "Duplicate detection and alert storm suppression",
+    "version": "1.0.0",
+    "nodes": [
+        {
+            "id": "incident_input",
+            "type": "webhook",
+            "position": {
+                "x": 100,
+                "y": 200
+            },
+            "data": {
+                "name": "Incident Input",
+                "endpoint": "/storm-shield",
+                "method": "POST"
+            }
+        },
+        {
+            "id": "extract_fingerprint",
+            "type": "text_processor",
+            "position": {
+                "x": 300,
+                "y": 200
+            },
+            "data": {
+                "name": "Extract Fingerprint",
+                "operation": "hash",
+                "fields": [
+                    "short_description",
+                    "cmdb_ci",
+                    "category"
+                ]
+            }
+        },
+        {
+            "id": "redis_check",
+            "type": "redis_query",
+            "position": {
+                "x": 500,
+                "y": 200
+            },
+            "data": {
+                "name": "Check Redis Storm Cache",
+                "operation": "GET",
+                "key_template": "storm:fingerprint:{{fingerprint}}"
+            }
+        },
+        {
+            "id": "duplicate_router",
+            "type": "conditional_router",
+            "position": {
+                "x": 700,
+                "y": 200
+            },
+            "data": {
+                "name": "Duplicate Check",
+                "condition": "{{cache_hit}} == true"
+            }
+        },
+        {
+            "id": "block_duplicate",
+            "type": "response",
+            "position": {
+                "x": 900,
+                "y": 100
+            },
+            "data": {
+                "name": "Block Duplicate",
+                "status_code": 200,
+                "body": "{\"blocked\": true, \"parent\": \"{{parent_incident}}\"}"
+            }
+        },
+        {
+            "id": "increment_counter",
+            "type": "redis_command",
+            "position": {
+                "x": 900,
+                "y": 100
+            },
+            "data": {
+                "name": "Increment Storm Counter",
+                "operation": "INCR",
+                "key_template": "storm:count:{{fingerprint}}"
+            }
+        },
+        {
+            "id": "check_storm_threshold",
+            "type": "conditional_router",
+            "position": {
+                "x": 1100,
+                "y": 100
+            },
+            "data": {
+                "name": "Storm Threshold Check",
+                "condition": "{{count}} >= 10"
+            }
+        },
+        {
+            "id": "declare_storm",
+            "type": "teams_notification",
+            "position": {
+                "x": 1300,
+                "y": 50
+            },
+            "data": {
+                "name": "Declare Alert Storm",
+                "template": "🚨 STORM DETECTED: {{count}}+ incidents for {{cmdb_ci}}"
+            }
+        },
+        {
+            "id": "record_fingerprint",
+            "type": "redis_command",
+            "position": {
+                "x": 900,
+                "y": 300
+            },
+            "data": {
+                "name": "Record New Fingerprint",
+                "operation": "SETEX",
+                "key_template": "storm:fingerprint:{{fingerprint}}",
+                "ttl": 14400
+            }
+        },
+        {
+            "id": "allow_through",
+            "type": "response",
+            "position": {
+                "x": 1100,
+                "y": 300
+            },
+            "data": {
+                "name": "Allow Incident",
+                "status_code": 200,
+                "body": "{\"blocked\": false, \"fingerprint\": \"{{fingerprint}}\"}"
+            }
+        }
+    ],
+    "edges": [
+        {
+            "source": "incident_input",
+            "target": "extract_fingerprint"
+        },
+        {
+            "source": "extract_fingerprint",
+            "target": "redis_check"
+        },
+        {
+            "source": "redis_check",
+            "target": "duplicate_router"
+        },
+        {
+            "source": "duplicate_router",
+            "target": "block_duplicate",
+            "condition": "duplicate"
+        },
+        {
+            "source": "duplicate_router",
+            "target": "record_fingerprint",
+            "condition": "new"
+        },
+        {
+            "source": "block_duplicate",
+            "target": "increment_counter"
+        },
+        {
+            "source": "increment_counter",
+            "target": "check_storm_threshold"
+        },
+        {
+            "source": "check_storm_threshold",
+            "target": "declare_storm",
+            "condition": "storm"
+        },
+        {
+            "source": "record_fingerprint",
+            "target": "allow_through"
+        }
+    ]
+}

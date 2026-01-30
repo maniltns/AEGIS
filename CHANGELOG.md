@@ -16,6 +16,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-01-30
+
+### Added - CrewAI + LangFlow Migration
+- **🤖 CrewAI Agent Framework** - Full Python implementation
+  - `agents/crew.py` - 9 agents with crew orchestration
+  - `agents/tools/` - ServiceNow, Redis, RAG, Teams tools
+- **🎨 LangFlow Visual Pipelines**
+  - `langflow/master-triage-flow.json` - Main incident triage
+  - `langflow/storm-shield-flow.json` - Duplicate detection
+- **⚡ FastAPI Server** - `api.py` with webhooks and governance APIs
+- **📋 CrewAI vs UiPath Comparison** - `docs/ea-pack/crewai-vs-uipath-comparison.md`
+- **📖 Setup Guide** - `docs/setup-guide.md` comprehensive deployment guide
+
+### Changed
+- **Stack Migration:** n8n → CrewAI + LangFlow (MIT licensed)
+- **License:** Moved to fully open source (MIT)
+- **Docker Compose:** Updated for new stack (AEGIS API, LangFlow, ChromaDB)
+- **Architecture Diagrams:** Updated for 9-agent CrewAI swarm
+- **README:** Complete overhaul for v2.0
+
+### Removed
+- n8n workflow JSON files (replaced by CrewAI agents)
+- n8n container from Docker Compose
+
+### Cost Impact
+- **5-Year TCO:** $107,000 (vs $507,000 UiPath Agentic)
+- **Savings:** $400,000 (79% reduction)
+
+---
+
+
 ## [1.2.0] - 2026-01-28
 
 ### Added - Enterprise Readiness

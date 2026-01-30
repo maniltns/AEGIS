@@ -1,99 +1,185 @@
-# AEGIS Docker Stack for POC
-# Redis Stack + n8n Orchestration
-# Security hardened configuration
+# AEGIS Docker Compose - CrewAI + LangFlow Stack
+# Version: 2.0.0
+# Stack: CrewAI, LangFlow, FastAPI, Redis, ChromaDB
 
 version: '3.8'
 
 services:
-  # Redis Stack - Storm Shield & Governance
-  redis:
-    image: redis/redis-stack:latest
-    container_name: aegis-redis
-    ports:
-      - "127.0.0.1:6379:6379" # Bind to localhost only
-      - "127.0.0.1:8001:8001" # RedisInsight UI - localhost only
-    volumes:
-      - redis_data:/data
-    environment:
-      - REDIS_ARGS=--appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD:-aegis2026secure}
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aegis2026secure}", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    networks:
-      - aegis-network
-    labels:
-      - "com.aegis.security=high"
-      - "com.aegis.gdpr=pii-cache"
-      - "com.aegis.backup=required"
-
-  # n8n Workflow Orchestration
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: aegis-n8n
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=aegis2026
-      - GENERIC_TIMEZONE=Asia/Kolkata
-      - N8N_HOST=localhost
-      - WEBHOOK_URL=http://localhost:5678/
-      # Environment variables for workflows
-      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    volumes:
-      - n8n_data:/home/node/.n8n
-      - ./workflows:/home/node/workflows:ro
-    depends_on:
-      - redis
-    restart: unless-stopped
-    networks:
-      - aegis-network
-
-  # 🧠 AEGIS RAG Service - Intelligent Knowledge Retrieval
-  rag-service:
+  # ===========================================================================
+  # AEGIS API Server (FastAPI + CrewAI)
+  # ===========================================================================
+  aegis-api:
     build:
-      context: ../rag-service
-      dockerfile: Dockerfile
-    container_name: aegis-rag
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: aegis-api
     ports:
       - "8000:8000"
     environment:
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - TITAN_MODEL_ID=${TITAN_MODEL_ID:-amazon.titan-embed-text-v2:0}
+      # LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - CLAUDE_MODEL=${CLAUDE_MODEL:-claude-sonnet-4-5-20250514}
-      - CHROMA_PERSIST_DIR=/data/chromadb
-      - TOP_K_RESULTS=5
-      - SIMILARITY_THRESHOLD=0.7
-    volumes:
-      - chromadb_data:/data/chromadb
+
+      # ServiceNow
+      - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
+      - SERVICENOW_USER=${SERVICENOW_USER}
+      - SERVICENOW_PASSWORD=${SERVICENOW_PASSWORD}
+
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+      # RAG Service
+      - RAG_SERVICE_URL=http://rag-service:8100
+
+      # Teams
+      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
+    depends_on:
+      - redis
+      - rag-service
+    networks:
+      - aegis-network
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # ===========================================================================
+  # LangFlow Visual Pipeline Builder
+  # ===========================================================================
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: aegis-langflow
+    ports:
+      - "7860:7860"
+    environment:
+      - LANGFLOW_DATABASE_URL=sqlite:///./langflow.db
+      - LANGFLOW_SUPERUSER=admin
+      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_PASSWORD:-aegis2026}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - langflow-data:/app/langflow
+      - ./langflow/flows:/app/flows
     networks:
       - aegis-network
-    labels:
-      - "com.aegis.component=rag"
-      - "com.aegis.ai.embedding=titan-v2"
-      - "com.aegis.ai.reasoning=claude-sonnet"
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:7860/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-volumes:
-  redis_data:
-  n8n_data:
-  chromadb_data:
+  # ===========================================================================
+  # RAG Service (FastAPI + ChromaDB + Bedrock)
+  # ===========================================================================
+  rag-service:
+    build:
+      context: ./rag-service
+      dockerfile: Dockerfile
+    container_name: aegis-rag
+    ports:
+      - "8100:8100"
+    environment:
+      # AWS Bedrock
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - AWS_EMBEDDING_MODEL=amazon.titan-embed-text-v2:0
 
+      # LLM
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
 
+      # ChromaDB
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8200
+    depends_on:
+      - chromadb
+    networks:
+      - aegis-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # ChromaDB Vector Database
+  # ===========================================================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: aegis-chromadb
+    ports:
+      - "8200:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+      - ALLOW_RESET=true
+    networks:
+      - aegis-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Redis Stack (Governance, Caching, Storm Shield)
+  # ===========================================================================
+  redis:
+    image: redis/redis-stack:latest
+    container_name: aegis-redis
+    ports:
+      - "6379:6379" # Redis
+      - "8001:8001" # RedisInsight
+    volumes:
+      - redis-data:/data
+      - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
+    command: [ "redis-stack-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - aegis-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Redis Initialization (Run once)
+  # ===========================================================================
+  redis-init:
+    image: redis:alpine
+    container_name: aegis-redis-init
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - aegis-network
+    entrypoint: >
+      sh -c "
+        echo 'Initializing Redis governance keys...'
+        redis-cli -h redis SET gov:killswitch true
+        redis-cli -h redis SET gov:mode assist
+        redis-cli -h redis SET gov:threshold:auto_assign 85
+        redis-cli -h redis SET gov:threshold:auto_categorize 80
+        redis-cli -h redis SET gov:threshold:auto_remediate 95
+        echo 'Redis initialization complete!'
+      "
+    restart: "no"
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
 networks:
   aegis-network:
     driver: bridge
+    name: aegis-network
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  redis-data:
+    name: aegis-redis-data
+  chroma-data:
+    name: aegis-chroma-data
+  langflow-data:
+    name: aegis-langflow-data
