@@ -1,64 +1,222 @@
 # AEGIS – Operating Model
 
 **Document:** Operating Model & Ownership  
-**Version:** 1.0 | January 2026
+**Version:** 1.1 | January 2026
 
 ---
 
-## 1. Before / After Operating Model
+## 1. Current vs Target Operating Model
 
-### Current State (Without AEGIS)
+### Intelligent Triage System (ITS) Transformation
 
 ```mermaid
-flowchart TB
-    subgraph CURRENT["❌ Current State - Manual Triage"]
+graph TB
+    subgraph CURRENT["❌ CURRENT OPERATING MODEL"]
         direction TB
-        U1["👤 User"] --> SN1["📋 ServiceNow"]
-        SN1 --> L1["👨‍💻 L1 Agent"]
+        ITC["🏢 ITC – Accor Account Management"]
         
-        subgraph MANUAL["Manual Process (15+ min)"]
-            L1 --> M1["📖 Read Ticket<br/>2 min"]
-            M1 --> M2["🔍 Search KB<br/>5 min"]
-            M2 --> M3["📝 Categorize<br/>3 min"]
-            M3 --> M4["🎯 Assign<br/>2 min"]
-            M4 --> M5["📋 Update Notes<br/>3 min"]
+        subgraph SILOS["Multiple Contracts, Un-consolidated & Fragmented"]
+            direction LR
+            subgraph HC["🏨 Hotel Care"]
+                HC1["Hotel IT L1"]
+                HC2["Infra L2"]
+                HC3["Opera & FOLS L2"]
+                HC4["BAU Governance"]
+                HC5["Network Monitoring"]
+                HC6["Distribution Support"]
+                HC7["Field Support"]
+            end
+            
+            subgraph ITOPS["🖥️ IT Ops"]
+                IT1["L1, L2, L3 Support"]
+                IT2["Tools Support<br/>(Splunk, PBI)"]
+                IT3["Network Managed Sv"]
+                IT4["DC Managed Sv"]
+                IT5["Cloud Managed Sv"]
+            end
+            
+            subgraph DHS["📊 DHS"]
+                DHS1["FOLS L3 Support"]
+                DHS2["Opera L3 Support"]
+                DHS3["RMS, TAGS"]
+                DHS4["PGIT"]
+                DHS5["Elevate Migration"]
+                DHS6["BPO Services"]
+            end
+            
+            subgraph ECF["💰 E&CF"]
+                ECF1["OneHR L1, L2, L3"]
+                ECF2["Finance"]
+                ECF3["DWP Projects"]
+                ECF4["M2N Projects"]
+                ECF5["RPA Projects"]
+                ECF6["GAIA Rollout"]
+            end
         end
-        
-        M5 --> L2["👨‍💼 L2 Agent"]
     end
     
     style CURRENT fill:#ffebee,stroke:#c62828
-    style MANUAL fill:#ffcdd2,stroke:#e57373
+    style SILOS fill:#ffcdd2,stroke:#e57373
 ```
 
-### Future State (With AEGIS)
+### Target Operating Model (With AEGIS + SIAM)
 
 ```mermaid
-flowchart TB
-    subgraph FUTURE["✅ Future State - AI-Assisted Triage"]
+graph TB
+    subgraph TARGET["✅ TARGET OPERATING MODEL"]
         direction TB
-        U2["👤 User"] --> SN2["📋 ServiceNow"]
-        SN2 --> AEGIS["🛡️ AEGIS Platform"]
+        STRATEGY["🎯 Accor – ITC Strategy Office (Driven by OKRs)"]
         
-        subgraph AUTO["Automated Process (< 1 min)"]
-            AEGIS --> A1["🛡️ Storm Shield<br/>Dedupe"]
-            A1 --> A2["🔍 RAG Search<br/>KB + History"]
-            A2 --> A3["🧠 AI Classify<br/>90%+ Accuracy"]
-            A3 --> A4["🎯 Auto-Assign"]
-            A4 --> A5["📋 Work Notes<br/>+ Reasoning"]
+        subgraph SIAM["🔗 Service Integration & Management (SIAM)"]
+            direction TB
+            
+            subgraph INFRA["�️ IT Infra and Ops"]
+                DESK["L1 Integrated Service Desk"]
+                L2INT["Integrated L2<br/>(IAM, DC, NOC etc.)"]
+                
+                subgraph PLATFORM["Platform Support"]
+                    L3DWP["L3 DWP"]
+                    L3MIG["L3 Migration"]
+                    DEVOPS1["DevOps"]
+                    M2N["M2N Projects"]
+                    GAIA["GAIA Rollout"]
+                end
+            end
+            
+            subgraph HOTEL["🏨 Hotel Systems"]
+                FIELD["Field Support"]
+                OPERA["Opera (incl. L2)"]
+                TAGS["TAGS (incl. L2)"]
+                FOLS["FOLS (incl. L2)"]
+                RMS["RMS"]
+            end
+            
+            subgraph APPS["📱 Apps"]
+                DIGITAL["Digital"]
+                INTEG["Integrations"]
+                CLOUD["Cloud (Build, OS, SW)"]
+            end
+            
+            subgraph ERP["💼 ERP"]
+                PORTALS["Portals, Dashboards"]
+                HR["HR"]
+                FINANCE2["Finance"]
+            end
+            
+            subgraph AIML["🧠 AI & ML CoE"]
+                AEGIS_CORE["🛡️ AEGIS<br/>Intelligent Triage"]
+            end
+            
+            subgraph DATA["📊 Data & Automation"]
+                SMART["Smart Automation"]
+                DATAHUB["Data Hub"]
+                DATAMGMT["Data Mgmt"]
+            end
+            
+            subgraph OUTSOURCE["🏭 Process Outsourcing"]
+                DIST["Distribution"]
+                BILLING["Billing"]
+            end
         end
         
-        A5 --> L1R["👨‍💻 L1 Review<br/>1 min"]
-        L1R --> DONE["✅ Resolved"]
+        subgraph SHARED["⚡ Optimization Shared Services (OSS)"]
+            OSS["ITSM, DevOps, Automation & AI, Data & Analytics"]
+        end
+        
+        XPMS["📋 XPMS CoE"]
+        INNOVATION["🚀 Innovation & Transformation Office"]
+        INTKM["📚 Integration KM"]
     end
     
-    style FUTURE fill:#e8f5e9,stroke:#2e7d32
-    style AUTO fill:#c8e6c9,stroke:#66bb6a
+    style TARGET fill:#e8f5e9,stroke:#2e7d32
+    style SIAM fill:#c8e6c9,stroke:#66bb6a
+    style AIML fill:#e3f2fd,stroke:#1976d2
 ```
 
 ---
 
-## 2. Ownership Roles (RACI)
+## 2. Side-by-Side Comparison
+
+```mermaid
+graph LR
+    subgraph BEFORE["❌ Current State"]
+        direction TB
+        B1["� Multiple Contracts"]
+        B2["🔴 Un-consolidated"]
+        B3["🔴 Fragmented Towers"]
+        B4["🔴 Manual Triage"]
+        B5["🔴 Slow Expert Discovery"]
+        B6["🔴 No AI/ML Integration"]
+    end
+    
+    AEGIS_TRANSFORM["🛡️ AEGIS<br/>Transformation"]
+    
+    subgraph AFTER["✅ Target State"]
+        direction TB
+        A1["🟢 Integrated Services"]
+        A2["� SIAM Governance"]
+        A3["🟢 Shared Services"]
+        A4["🟢 AI-Powered Triage"]
+        A5["🟢 Instant Swarming"]
+        A6["🟢 AI & ML CoE"]
+    end
+    
+    BEFORE --> AEGIS_TRANSFORM --> AFTER
+    
+    style BEFORE fill:#ffcdd2,stroke:#c62828
+    style AFTER fill:#c8e6c9,stroke:#2e7d32
+    style AEGIS_TRANSFORM fill:#1a1a2e,stroke:#16213e,color:#fff
+```
+
+| Dimension | Current State | Target State (With AEGIS) |
+|-----------|---------------|---------------------------|
+| **Structure** | Multiple contracts, fragmented | Integrated services, SIAM |
+| **Triage** | Manual, 15+ minutes | AI-powered, < 1 minute |
+| **Expert Discovery** | Slow, manual | Instant collaborative swarming |
+| **Knowledge** | Siloed by tower | Unified Knowledge Management |
+| **Automation** | Minimal, script-based | AI & ML CoE with AEGIS |
+| **Governance** | Tower-specific | OKR-driven Strategy Office |
+
+---
+
+## 3. AEGIS Role in SIAM
+
+```mermaid
+flowchart TB
+    subgraph AEGIS_ROLE["🛡️ AEGIS in Target Operating Model"]
+        direction TB
+        
+        INPUT["📥 20K-30K Incidents/Month"] --> AEGIS
+        
+        subgraph AEGIS["AEGIS - AI & ML CoE"]
+            SS["🛡️ Storm Shield<br/>Noise Suppression"]
+            IT["🧠 Intelligent Triage<br/>Classification & Routing"]
+            CI["� Contextual Intelligence<br/>Root Cause Analysis"]
+            CS["👥 Collaborative Swarming<br/>Expert Assembly"]
+        end
+        
+        AEGIS --> INFRA2["�️ IT Infra & Ops"]
+        AEGIS --> HOTEL2["🏨 Hotel Systems"]
+        AEGIS --> APPS2["📱 Apps & ERP"]
+        
+        subgraph OUTCOMES["📊 Business Outcomes"]
+            O1["30-40% MTTR Reduction"]
+            O2["25-35% Volume Deflection"]
+            O3["2,000 hrs/month Reclaimed"]
+        end
+        
+        INFRA2 --> OUTCOMES
+        HOTEL2 --> OUTCOMES
+        APPS2 --> OUTCOMES
+    end
+    
+    style AEGIS fill:#e3f2fd,stroke:#1976d2
+    style OUTCOMES fill:#c8e6c9,stroke:#2e7d32
+```
+
+---
+
+## 4. Ownership Roles (RACI)
 
 ```mermaid
 graph TB
@@ -94,9 +252,9 @@ graph TB
 
 ---
 
-## 3. Process Ownership
+## 5. Process Ownership
 
-### 3.1 Automation Approval Process
+### Automation Approval Process
 
 ```mermaid
 flowchart LR
@@ -111,46 +269,18 @@ flowchart LR
     style DEPLOY fill:#4caf50,stroke:#2e7d32,color:#fff
 ```
 
-### 3.2 Model Accuracy Review Cycle
-
-```mermaid
-gantt
-    title Model Review Cadence
-    dateFormat  X
-    axisFormat %s
-    
-    section Daily
-    Error Logs & False Positives    :active, 1, 2
-    
-    section Weekly
-    Accuracy Metrics Review         :3, 4
-    
-    section Monthly
-    Full Audit & Prompt Tuning      :5, 6
-    
-    section Quarterly
-    Model Drift Assessment          :7, 8
-```
+### Model Accuracy Review Cycle
 
 | Frequency | Activity | Owner |
 |-----------|----------|-------|
-| **Daily** | Check error logs, false positives | Operations |
+| **Daily** | Error logs, false positives | Operations |
 | **Weekly** | Accuracy metrics review | Model Steward |
-| **Monthly** | Full accuracy audit, prompt tuning | Model Steward + PO |
-| **Quarterly** | Model drift assessment, retraining decision | AI/ML Team |
-
-### 3.3 Production Change Sign-Off
-
-| Change Type | Approvers | SLA |
-|-------------|-----------|-----|
-| **Standard** (config) | Technical Lead | 24 hours |
-| **Normal** (new workflow) | Technical Lead + Ops Owner | 5 days |
-| **Emergency** (hotfix) | Product Owner + Security | 4 hours |
-| **Major** (new agent) | Full CAB | 10 days |
+| **Monthly** | Full audit, prompt tuning | Model Steward + PO |
+| **Quarterly** | Model drift assessment | AI/ML Team |
 
 ---
 
-## 4. Escalation Matrix
+## 6. Escalation Matrix
 
 ```mermaid
 flowchart TB
@@ -176,7 +306,7 @@ flowchart TB
 
 ---
 
-## 5. Support Model
+## 7. Support Model
 
 ```mermaid
 graph TB
@@ -185,62 +315,20 @@ graph TB
         L1S["🟢 L1 Support<br/>Operations Team"] --> L2S["🟡 L2 Support<br/>Technical Team"] --> L3S["🔴 L3 Support<br/>Engineering Team"]
     end
     
-    subgraph L1D["L1 Responsibilities"]
-        L1A["Monitor dashboards"]
-        L1B["Restart workflows"]
-        L1C["Kill switch"]
-        L1D2["Escalate issues"]
-    end
-    
-    subgraph L2D["L2 Responsibilities"]
-        L2A["Debug n8n errors"]
-        L2B["Fix integrations"]
-        L2C["Tune prompts"]
-    end
-    
-    subgraph L3D["L3 Responsibilities"]
-        L3A["Architecture changes"]
-        L3B["New agents"]
-        L3C["Model retraining"]
-    end
-    
-    L1S --> L1D
-    L2S --> L2D
-    L3S --> L3D
-    
     style L1S fill:#4caf50,stroke:#2e7d32,color:#fff
     style L2S fill:#ff9800,stroke:#ef6c00,color:#fff
     style L3S fill:#f44336,stroke:#c62828,color:#fff
 ```
 
----
-
-## 6. Governance Cadence
-
-```mermaid
-timeline
-    title Governance Meeting Schedule
-    section Daily
-        Standup : Ops, Tech Lead
-    section Weekly
-        Accuracy Review : Model Steward, PO
-    section Bi-weekly
-        Stakeholder Sync : PO, Business
-    section Monthly
-        Governance Board : All Owners
-```
+| Tier | Team | Responsibilities |
+|------|------|------------------|
+| **L1** | Operations | Monitor dashboards, restart workflows, kill switch |
+| **L2** | Technical | Debug n8n errors, fix integrations, tune prompts |
+| **L3** | Engineering | Architecture changes, new agents, model retraining |
 
 ---
 
-## 7. Key Metrics Ownership
-
-```mermaid
-pie title Metrics by Owner
-    "Ops Owner" : 40
-    "Model Steward" : 25
-    "Tech Lead" : 20
-    "Security" : 15
-```
+## 8. Key Metrics Ownership
 
 | Metric | Owner | Target | Review |
 |--------|-------|--------|--------|
@@ -252,4 +340,4 @@ pie title Metrics by Owner
 
 ---
 
-*Document Owner: Anilkumar MN | Last Updated: January 28, 2026*
+*Document Owner: Anilkumar MN | Last Updated: January 30, 2026*
