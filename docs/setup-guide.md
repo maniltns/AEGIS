@@ -20,7 +20,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/accor/aegis-ops.git
+git clone https://github.com/maniltns/AEGIS.git
 cd aegis-ops
 
 # Copy environment template
