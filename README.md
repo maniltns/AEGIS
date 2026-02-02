@@ -78,7 +78,7 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 
 ```bash
 # Clone repository
-git clone https://github.com/accor/aegis-ops.git
+git clone https://github.com/maniltns/AEGIS.git
 cd aegis-ops
 
 # Configure environment

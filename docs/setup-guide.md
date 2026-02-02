@@ -111,10 +111,8 @@ docker-compose --version
 ### Step 3.3: Clone the Repository
 
 ```bash
-# Clone AEGIS repository
-git clone https://github.com/accor/aegis-ops.git
-
-# Navigate to project directory
+# Clone the repository
+git clone https://github.com/maniltns/AEGIS.git
 cd aegis-ops
 
 # Verify structure
@@ -188,58 +186,41 @@ SERVICENOW_INSTANCE=accordev.service-now.com
 # Integration user credentials
 # Request from your ServiceNow admin
 SERVICENOW_USER=aegis_integration
-SERVICENOW_PASSWORD=your-secure-password
+SERVICENOW_PASSWORD=xxx
 
-# Required ServiceNow roles for integration user:
-# - itil
-# - rest_api_explorer
-# - import_admin (for custom tables)
+# Required: Teams Webhook
+TEAMS_WEBHOOK_URL=https://accor.webhook.office.com/xxx
+
+# Required: AWS (for embeddings)
+AWS_ACCESS_KEY_ID=xxx
+AWS_SECRET_ACCESS_KEY=xxx
 ```
 
-### Step 4.4: Configure Microsoft Teams
+### 3. Start the Stack
 
 ```bash
-# =============================================================================
-# MICROSOFT TEAMS CONFIGURATION
-# =============================================================================
-# Teams Incoming Webhook URL
-# How to create:
-# 1. Open Teams > Select channel > ... > Connectors
-# 2. Add "Incoming Webhook"
-# 3. Name it "AEGIS Notifications"
-# 4. Copy the webhook URL
+# Start all services
+cd docker
+docker-compose up -d
 
-TEAMS_WEBHOOK_URL=https://accor.webhook.office.com/webhookb2/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx@xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/IncomingWebhook/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# Check status
+docker-compose ps
+
+# View logs
+docker-compose logs -f aegis-api
 ```
 
-### Step 4.5: Configure Governance Thresholds
+### 4. Verify Installation
 
 ```bash
-# =============================================================================
-# GOVERNANCE DEFAULTS
-# =============================================================================
-# Minimum confidence (%) for automatic actions
-# Recommendations below threshold will require human approval
+# Health check
+curl http://localhost:8000/health
 
-THRESHOLD_AUTO_ASSIGN=85      # Auto-assign to team
-THRESHOLD_AUTO_CATEGORIZE=80  # Auto-categorize incident
-THRESHOLD_AUTO_REMEDIATE=95   # Auto-remediation requires very high confidence
+# Check governance status
+curl http://localhost:8000/status
 
-# Operating mode: auto | assist | monitor
-# - auto: AI makes changes automatically (above threshold)
-# - assist: AI recommends, human approves (default)
-# - monitor: AI observes only, no changes
-DEFAULT_MODE=assist
-```
-
-### Step 4.6: Configure LangFlow Password
-
-```bash
-# =============================================================================
-# LANGFLOW CONFIGURATION
-# =============================================================================
-# Admin password for LangFlow UI
-LANGFLOW_PASSWORD=your-secure-langflow-password
+# Access LangFlow UI
+# Open browser: http://localhost:7860
 ```
 
 ---
