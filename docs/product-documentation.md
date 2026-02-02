@@ -469,8 +469,8 @@ redis-cli SET gov:killswitch:cab_ref "CHG0012345"
 docker exec aegis-redis redis-cli PING
 # Expected: PONG
 
-# Check n8n
-curl http://localhost:5678/healthz
+# Check AEGIS API
+curl http://localhost:8000/health
 # Expected: {"status":"ok"}
 
 # Check Governance State
@@ -482,7 +482,7 @@ docker exec aegis-redis redis-cli GET gov:killswitch
 
 | Component | Log Location |
 |-----------|--------------|
-| n8n | Docker logs: `docker logs aegis-n8n` |
+| AEGIS API | Docker logs: `docker logs aegis-api` |
 | Redis | Docker logs: `docker logs aegis-redis` |
 | AEGIS Actions | ServiceNow: `u_ai_audit_log` |
 

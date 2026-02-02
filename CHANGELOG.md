@@ -12,13 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - JANITOR: AWS SSM integration for Windows/Linux
 - JANITOR: Opera OHIP API integration
-- SHERLOCK: Pinecone vector embeddings for KB
+- SHERLOCK: Enhanced vector embeddings for KB
 
 ---
 
-## [2.0.0] - 2026-01-30
+## [2.0.0] - 2026-02-02
 
-### Added - CrewAI + LangFlow Migration
+### Added - CrewAI + LangFlow Stack
 - **🤖 CrewAI Agent Framework** - Full Python implementation
   - `agents/crew.py` - 9 agents with crew orchestration
   - `agents/tools/` - ServiceNow, Redis, RAG, Teams tools
@@ -26,26 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `langflow/master-triage-flow.json` - Main incident triage
   - `langflow/storm-shield-flow.json` - Duplicate detection
 - **⚡ FastAPI Server** - `api.py` with webhooks and governance APIs
-- **📋 CrewAI vs UiPath Comparison** - `docs/ea-pack/crewai-vs-uipath-comparison.md`
+- **📋 Technology Comparison** - `docs/ea-pack/crewai-vs-uipath-comparison.md`
 - **📖 Setup Guide** - `docs/setup-guide.md` comprehensive deployment guide
 
 ### Changed
-- **Stack Migration:** n8n → CrewAI + LangFlow (MIT licensed)
-- **License:** Moved to fully open source (MIT)
+- **Orchestration Stack:** CrewAI + LangFlow (MIT licensed)
+- **License:** Fully open source (MIT)
 - **Docker Compose:** Updated for new stack (AEGIS API, LangFlow, ChromaDB)
 - **Architecture Diagrams:** Updated for 9-agent CrewAI swarm
 - **README:** Complete overhaul for v2.0
 
-### Removed
-- n8n workflow JSON files (replaced by CrewAI agents)
-- n8n container from Docker Compose
-
 ### Cost Impact
-- **5-Year TCO:** $107,000 (vs $507,000 UiPath Agentic)
-- **Savings:** $400,000 (79% reduction)
+- **5-Year TCO:** [TBD based on AWS sizing]
+- **License Cost:** $0 (fully open source)
 
 ---
-
 
 ## [1.2.0] - 2026-01-28
 
@@ -57,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `executive-pack/path-to-production.md` - Gate criteria, KPIs
 - **🏛️ EA Pack** - Architecture Review Board documentation
   - `ea-pack/ea-alignment.md` - ITIL mapping, capability map, ADRs
-  - `ea-pack/risk-register.md` - Comprehensive risk register (18 risks)
+  - `ea-pack/risk-register.md` - Comprehensive risk register
 - **3-Tier Documentation Structure** - Executive, EA, Technical packs
 
 ### Changed
@@ -69,129 +64,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.1] - 2026-01-28
 
-
 ### Added
 - **🧠 Custom RAG Service** - Intelligent Knowledge Retrieval
-  - `rag-service/main.py` - FastAPI with Titan V2 + Claude Sonnet 4.5
+  - `rag-service/main.py` - FastAPI with Titan V2 + Claude
   - `rag-service/Dockerfile` - Docker container configuration
   - ChromaDB vector database for KB, tickets, SOPs
-  - `workflows/rag-intelligent-triage.json` - n8n integration
-  - `docs/rag-service.md` - API documentation
 - **Technical Architecture Document (TAD)** - `docs/TAD.md`
   - System context and layered architecture
-  - Component specifications
-  - Security architecture with zones
-  - Data architecture and retention
-  - API and integration specs
-- **Product Documentation** - `docs/product-documentation.md`
-  - Feature catalog (5 categories)
-  - User personas (4 roles)
-  - Workflow guides
-  - Configuration reference
-  - Troubleshooting guide
-- **Architecture Diagrams** - Comprehensive Mermaid diagrams
-  - 6-Layer Architecture diagram
-  - Technology Stack Architecture
-  - Security Zones Deployment diagram  
-  - Data Flow Architecture
-  - Key Data Drivers mindmap
-  - Decision Scorecard
+  - Security model and deployment specs
+
+---
+
+## [1.1.0] - 2026-01-XX
+
+### Added
+- **🛡️ GUARDIAN Agent** (Storm Shield) - Duplicate detection
+- **🧠 SHERLOCK Agent** - AI-powered root cause analysis
+- **🎯 ROUTER Agent** - Intelligent assignment
+- **⚖️ ARBITER Agent** - Governance & Kill Switch
+- **📢 HERALD Agent** - Teams notifications
+- **📝 SCRIBE Agent** - Audit logging
+- **🌉 BRIDGE Agent** - Case to incident conversion
+- **🧹 JANITOR Agent** - Safe auto-remediation
+- Redis governance layer (Kill Switch, thresholds)
 
 ### Changed
-- `docker-compose.yml` - Added aegis-rag container
-- Updated `implementation_plan.md` with Key Data Drivers and Decision Scorecard
-- Standardized all diagrams to Mermaid format across docs
-- Enhanced `README.md` with documentation links
+- Architecture split into 9 specialized agents
+- Enhanced confidence scoring with configurable thresholds
 
 ---
 
-
-## [1.1.0] - 2026-01-27
-
-
+## [1.0.0] - 2026-01-XX
 
 ### Added
-- **Kill Switch Enhancement** - Multi-level verification with Azure AD + PIN
-  - `kill-switch-verified.json` workflow
-  - Role-based access control (Team Lead/Manager/Security Admin)
-  - Full audit logging of all activation attempts
-  
-- **Solution Comparison** - vs ServiceNow alternatives
-  - Feature comparison matrix
-  - 5-year TCO analysis (88% savings vs NowAssist)
-  - Weighted decision scorecard
-  
-- **Security Framework**
-  - Zero Trust security model documentation
-  - Security control matrix
-  - TLS 1.3, Redis password authentication
-  
-- **GDPR Compliance**
-  - `pii-scrubber.json` workflow for PII anonymization
-  - Article 5/17/30 compliance documentation
-  - Data retention policies
-  
-- **Agile Documentation**
-  - `CONTRIBUTING.md` - Development guidelines
-  - `CHANGELOG.md` - Version history
-  - `docs/user-stories.md` - Product backlog
-  - `docs/sprint-backlog.md` - Sprint items
-
-### Changed
-- Docker Compose - Redis now requires password authentication
-- Docker Compose - Ports bound to localhost only
-- Implementation Plan - Added Sections 10 (Security) and 11 (GDPR)
-
-### Security
-- Redis authentication enabled by default
-- Localhost-only port binding for Redis and RedisInsight
-- PII scrubbing before AI processing
+- Initial AEGIS platform
+- ServiceNow integration
+- Microsoft Teams notifications
+- Basic incident triage workflow
+- Docker deployment
 
 ---
 
-## [1.0.0] - 2026-01-26
-
-### Added
-- **Core Workflows**
-  - `storm-shield.json` - GUARDIAN deduplication
-  - `kill-switch.json` - ARBITER governance
-  - `kb-search.json` - SCOUT KB lookup
-  - `master-triage.json` - Full triage pipeline
-  - `case-to-incident.json` - BRIDGE case conversion
-  - `ritm-finance.json` - Hotel finance approval
-  
-- **JANITOR Agent**
-  - `janitor-auto-remediation.json` - Auto-fix workflow
-  - `janitor-approval-handler.json` - Human approval
-  
-- **Infrastructure**
-  - Docker Compose for Redis Stack + n8n
-  - Redis governance key initialization
-  
-- **Documentation**
-  - `implementation_plan.md` - Full specification
-  - `demo-script.md` - Workshop guide
-
-### Defined
-- Glass Box Principles (Transparency, Human-in-Loop, Auditability)
-- Multi-Agent Architecture (9 agents)
-- Redis schema for governance
-
----
-
-## [0.1.0] - 2026-01-20
-
-### Added
-- Initial project structure
-- POC planning documentation
-- Basic n8n environment setup
-
----
-
-## Version History
-
-| Version | Date | Milestone |
-|---------|------|-----------|
-| 1.1.0 | Jan 27, 2026 | Security & GDPR Enhancement |
-| 1.0.0 | Jan 26, 2026 | POC Complete |
-| 0.1.0 | Jan 20, 2026 | Project Kickoff |
+*Document maintained by AEGIS Team*

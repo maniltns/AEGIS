@@ -41,7 +41,7 @@ flowchart TB
     subgraph G0["✅ Gate 0: POC Complete"]
         direction LR
         subgraph ENTRY0["Entry Criteria"]
-            E01["🐳 n8n Deployed"]
+            E01["🐳 Docker Stack Deployed"]
             E02["📦 Redis Configured"]
             E03["🧠 AI Workflow Ready"]
             E04["📋 ServiceNow Tested"]

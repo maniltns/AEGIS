@@ -1,8 +1,8 @@
 # 🛡️ AEGIS Technical Architecture Document (TAD)
 
-**Document ID:** AEGIS-TAD-001  
-**Version:** 1.0  
-**Date:** January 28, 2026  
+**Document ID:** AEGIS-TAD-002  
+**Version:** 2.0  
+**Date:** February 2, 2026  
 **Author:** Anilkumar MN  
 **Client:** Accor Hotels  
 
@@ -12,6 +12,7 @@
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.0 | 2026-02-02 | Anilkumar MN | Updated to CrewAI + LangFlow stack |
 | 1.0 | 2026-01-28 | Anilkumar MN | Initial TAD |
 
 ---
@@ -24,7 +25,7 @@ AEGIS (Autonomous Expert for Governance, Intelligence & Swarming) is an AI-power
 
 | Capability | Description |
 |------------|-------------|
-| **Multi-Agent AI** | 9 specialized agents (GUARDIAN, SCOUT, SHERLOCK, ROUTER, ARBITER, HERALD, SCRIBE, BRIDGE, JANITOR) |
+| **Multi-Agent AI** | 9 specialized CrewAI agents (GUARDIAN, SCOUT, SHERLOCK, ROUTER, ARBITER, HERALD, SCRIBE, BRIDGE, JANITOR) |
 | **Storm Shield** | Redis-based alert deduplication preventing agent fatigue |
 | **Glass Box AI** | Transparent, auditable, reversible AI decisions |
 | **Kill Switch** | Multi-level verified emergency stop for all AI operations |
@@ -39,37 +40,39 @@ graph TB
     subgraph "🌐 External Systems"
         SNOW["📋 ServiceNow<br/>ITSM Platform"]
         TEAMS["💬 MS Teams<br/>Collaboration"]
-        OPENAI["🧠 OpenAI<br/>GPT-4o / GPT-4o-mini"]
+        OPENAI["🧠 OpenAI<br/>GPT-4o / Claude"]
         ARS["🔐 ARS Portal<br/>Identity Management"]
         OPERA["🏨 PMS Opera<br/>Hotel Management"]
         AAD["🔑 Azure AD<br/>Authentication"]
     end
 
     subgraph "🛡️ AEGIS Platform"
-        N8N["🔄 n8n<br/>Workflow Orchestration"]
+        CREW["👥 CrewAI<br/>9-Agent Swarm"]
+        LF["🎨 LangFlow<br/>Visual Pipelines"]
+        API["⚡ FastAPI<br/>Webhooks"]
         REDIS["📦 Redis Stack<br/>State & Governance"]
-        AGENTS["🤖 AI Agents<br/>Multi-Agent Swarm"]
     end
 
     subgraph "☁️ AWS Cloud"
         EC2["💻 EC2<br/>Docker Host"]
         SSM["🔧 SSM<br/>Remote Execution"]
         SECRETS["🔐 Secrets Manager"]
-        LAMBDA["⚡ Lambda<br/>Functions"]
+        BEDROCK["🧠 Bedrock<br/>Titan Embeddings"]
     end
 
-    SNOW <--> N8N
-    TEAMS <--> N8N
-    N8N --> OPENAI
-    N8N --> ARS
-    N8N --> OPERA
-    N8N <--> AAD
-    N8N <--> REDIS
-    N8N --> AGENTS
-    EC2 --> N8N
+    SNOW <--> API
+    TEAMS <--> API
+    API --> CREW
+    CREW --> LF
+    CREW --> REDIS
+    CREW --> OPENAI
+    CREW --> ARS
+    CREW --> OPERA
+    CREW <--> AAD
+    EC2 --> CREW
     SSM --> EC2
-    SECRETS --> N8N
-    LAMBDA --> SSM
+    SECRETS --> CREW
+    BEDROCK --> CREW
 ```
 
 ---
@@ -86,14 +89,14 @@ graph TB
         direction LR
         L1_SNOW["📋 ServiceNow Portal<br/>Users, Sessions, Incidents"]
         L1_TEAMS["💬 MS Teams<br/>Chat, Adaptive Cards, Approvals"]
-        L1_ADMIN["🔧 Admin Panel<br/>n8n Console, RedisInsight"]
+        L1_ADMIN["🔧 Admin Panel<br/>LangFlow UI, RedisInsight"]
     end
 
-    subgraph L2["Layer 2: n8n Pipelines"]
+    subgraph L2["Layer 2: API & Orchestration"]
         direction LR
-        L2_CONN["🔗 Connectors<br/>ServiceNow, Teams, HTTP"]
-        L2_PIPE["⚙️ Core Pipelines<br/>Storm Shield, Master Triage, Case→Incident"]
-        L2_TOOLS["🔧 Tool Calling<br/>PII Scrubber, KB Search, Functions"]
+        L2_API["⚡ FastAPI Server<br/>Webhooks, Governance"]
+        L2_LF["🎨 LangFlow<br/>Visual Pipeline Builder"]
+        L2_TOOLS["🔧 Agent Tools<br/>ServiceNow, Redis, RAG, Teams"]
     end
 
     subgraph L3["Layer 3: Middleware"]
@@ -115,7 +118,7 @@ graph TB
         end
         L4_KB["💾 Knowledge Store<br/>(ChromaDB)"]
         L4_AUDIT["📊 Audit Logging"]
-        subgraph L4_AGENT["🤖 Agent Engine"]
+        subgraph L4_AGENT["👥 CrewAI Agent Engine"]
             AGT1["Task Planning"]
             AGT2["Task Execution"]
             AGT3["Decision Engine (ARBITER)"]
@@ -151,11 +154,11 @@ graph TB
 ### Layer Descriptions
 
 | Layer | Scaling | Components | Purpose |
-|-------|---------|-----------|---------|
+|-------|---------|-----------|---------| 
 | **L1: UI** | Horizontal | ServiceNow, MS Teams, Admin Panel | User interactions, sessions |
-| **L2: Pipelines** | Horizontal | n8n Workflows, Connectors, Tools | Pipeline orchestration |
+| **L2: Orchestration** | Horizontal | FastAPI, LangFlow, Agent Tools | API & pipeline orchestration |
 | **L3: Middleware** | Horizontal | Azure AD, Data Connectors, Kill Switch | Access control, data sources |
-| **L4: AI Engine** | Hybrid | RAG Engine + Agent Engine | Core AI processing |
+| **L4: AI Engine** | Hybrid | RAG Engine + CrewAI Agent Engine | Core AI processing |
 | **L5: LLM** | Load Balanced | Bedrock, Anthropic, OpenAI, Titan | LLM inference, observability |
 
 ### Layer 4 Components
@@ -172,7 +175,7 @@ graph TB
 | RAG Chain | 🟠 Active | Sequential RAG steps |
 | Pipeline Server | 🟠 Active | FastAPI `/api/v1/analyze` |
 
-#### 🤖 Agent Engine
+#### 👥 CrewAI Agent Engine
 
 | Component | Status | Description |
 |-----------|--------|-------------|
@@ -185,18 +188,17 @@ graph TB
 
 ---
 
-
 ## 5. Component Specifications
 
-### 5.1 n8n Workflow Engine
+### 5.1 CrewAI Agent Framework
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.x (Latest) |
+| **Framework** | CrewAI (MIT License) |
+| **Agents** | 9 specialized agents |
 | **Deployment** | Docker container |
-| **Port** | 5678 |
-| **Workflows** | 10 active |
-| **Trigger Types** | Webhook, Schedule (5-min poll) |
+| **Port** | 8000 (FastAPI) |
+| **Visual Builder** | LangFlow :7860 |
 
 ### 5.2 Redis Stack
 
@@ -212,8 +214,9 @@ graph TB
 
 | Model | Use Case | Context Window |
 |-------|----------|----------------|
-| **GPT-4o** | Complex triage, RCA | 128K tokens |
-| **GPT-4o-mini** | Classification, routing | 128K tokens |
+| **Claude Sonnet** | Complex triage, RCA | 200K tokens |
+| **GPT-4o** | Classification, routing | 128K tokens |
+| **Titan V2** | Embeddings | N/A |
 
 ---
 
@@ -280,7 +283,8 @@ graph TB
 
     subgraph TRUSTED["🔒 Trusted Zone"]
         DOCKER["Docker Host"]
-        N8N["n8n :5678"]
+        CREW["CrewAI :8000"]
+        LF["LangFlow :7860"]
         REDIS["Redis :6379"]
     end
 
@@ -294,9 +298,10 @@ graph TB
     TEAMS_EXT --> ALB
     SNOW_EXT --> ALB
     ALB --> DOCKER
-    DOCKER --> N8N
-    N8N --> REDIS
-    SECRETS --> N8N
+    DOCKER --> CREW
+    DOCKER --> LF
+    CREW --> REDIS
+    SECRETS --> CREW
     KMS --> SECRETS
 ```
 
@@ -309,7 +314,7 @@ graph TB
 | **Network** | Encryption | TLS 1.3 |
 | **Network** | WAF | AWS WAF + Rate Limiting |
 | **Data** | Encryption at Rest | AWS EBS, Redis AOF |
-| **Data** | PII Protection | pii-scrubber workflow |
+| **Data** | PII Protection | PII scrubber agent |
 | **Access** | RBAC | Azure AD Groups |
 | **Audit** | Logging | u_ai_audit_log (7 years) |
 | **Governance** | Kill Switch | Multi-level verified |
@@ -319,19 +324,19 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant User as 👤 Authorized User
-    participant N8N as 🔄 n8n
+    participant API as ⚡ FastAPI
     participant AAD as 🔑 Azure AD
     participant Redis as 📦 Redis
     participant SNOW as 📋 ServiceNow
 
-    User->>N8N: Kill Switch Request
-    N8N->>AAD: Verify Role (Team Lead/Manager)
-    AAD-->>N8N: Role Confirmed
-    N8N->>User: PIN Challenge (6-digit)
-    User->>N8N: PIN Response
-    N8N->>Redis: SET gov:killswitch false
-    N8N->>SNOW: Log Activation
-    N8N->>User: ✅ Kill Switch Activated
+    User->>API: Kill Switch Request
+    API->>AAD: Verify Role (Team Lead/Manager)
+    AAD-->>API: Role Confirmed
+    API->>User: PIN Challenge (6-digit)
+    User->>API: PIN Response
+    API->>Redis: SET gov:killswitch false
+    API->>SNOW: Log Activation
+    API->>User: ✅ Kill Switch Activated
 ```
 
 ---
@@ -417,12 +422,12 @@ flowchart LR
 
 | Source | Destination | Port | Protocol |
 |--------|-------------|------|----------|
-| n8n | ServiceNow | 443 | HTTPS |
-| n8n | Redis | 6379 | TCP |
-| n8n | OpenAI | 443 | HTTPS |
-| n8n | Teams | 443 | HTTPS |
-| n8n | ARS Portal | 443 | HTTPS |
-| n8n | AWS SSM | 443 | HTTPS |
+| AEGIS API | ServiceNow | 443 | HTTPS |
+| AEGIS API | Redis | 6379 | TCP |
+| AEGIS API | OpenAI | 443 | HTTPS |
+| AEGIS API | Teams | 443 | HTTPS |
+| AEGIS API | ARS Portal | 443 | HTTPS |
+| AEGIS API | AWS SSM | 443 | HTTPS |
 
 ---
 
@@ -432,23 +437,31 @@ flowchart LR
 
 | Component | Specification | Quantity |
 |-----------|---------------|----------|
-| **EC2 Instance** | t3.large (2 vCPU, 8GB) | 1 |
-| **EBS Volume** | gp3, 50GB | 1 |
+| **EC2 Instance** | t3.xlarge (4 vCPU, 16GB) | 1 |
+| **EBS Volume** | gp3, 100GB | 1 |
 | **Docker** | 24.x | — |
 | **Redis** | Stack 7.x, 256MB | 1 |
-| **n8n** | 1.x (Latest) | 1 |
+| **CrewAI** | 9 agents | 1 |
+| **LangFlow** | Latest | 1 |
 
 ### 10.2 Container Configuration
 
 ```yaml
 services:
-  aegis-n8n:
-    image: n8nio/n8n:latest
+  aegis-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
     ports:
-      - "5678:5678"
+      - "8000:8000"
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
       - REDIS_HOST=aegis-redis
+    restart: unless-stopped
+
+  langflow:
+    image: langflowai/langflow:latest
+    ports:
+      - "7860:7860"
     restart: unless-stopped
 
   aegis-redis:
@@ -466,7 +479,7 @@ services:
 
 | Metric | Tool | Threshold |
 |--------|------|-----------|
-| Workflow Execution | n8n UI | < 60s latency |
+| API Response Time | LangFlow UI | < 60s latency |
 | Redis Memory | RedisInsight | < 80% |
 | API Response Time | CloudWatch | < 2s |
 | Error Rate | ServiceNow Audit | < 1% |
@@ -480,7 +493,7 @@ services:
 |----------|-----|-----|-----------------|
 | EC2 Failure | 15 min | 5 min | Launch from AMI |
 | Redis Data Loss | 5 min | 0 | Restore from AOF |
-| n8n Corruption | 10 min | 0 | Redeploy container |
+| Agent Failure | 10 min | 0 | Redeploy container |
 | Network Outage | N/A | N/A | System gracefully pauses |
 
 ---
@@ -492,6 +505,8 @@ services:
 | Term | Definition |
 |------|------------|
 | **AEGIS** | Autonomous Expert for Governance, Intelligence & Swarming |
+| **CrewAI** | Open-source multi-agent framework |
+| **LangFlow** | Visual AI pipeline builder |
 | **Glass Box** | AI transparency principle - all decisions auditable |
 | **Kill Switch** | Emergency stop for all AI write operations |
 | **Storm Shield** | Alert deduplication system |
@@ -501,7 +516,7 @@ services:
 
 - [implementation_plan.md](./implementation_plan.md) - Full implementation details
 - [architecture-diagrams.md](./architecture-diagrams.md) - All Mermaid diagrams
-- [user-stories.md](./user-stories.md) - Product backlog
+- [setup-guide.md](./setup-guide.md) - Deployment guide
 
 ---
 

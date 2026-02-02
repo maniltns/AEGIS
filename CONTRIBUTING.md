@@ -31,7 +31,7 @@ Thank you for your interest in contributing to AEGIS! This document provides gui
 ### Prerequisites
 
 - Docker & Docker Compose
-- Node.js 18+ (for local n8n development)
+- Python 3.11+ (for agent development)
 - Access to ServiceNow Dev instance
 - Azure AD credentials (for Kill Switch testing)
 
@@ -51,7 +51,7 @@ cd docker && docker-compose up -d
 
 # Verify
 docker ps
-# Should show: aegis-redis, aegis-n8n
+# Should show: aegis-redis, aegis-api, langflow
 ```
 
 ---
@@ -148,7 +148,7 @@ Closes AEGIS-{id}
 - Add comments in Code nodes explaining complex logic
 - Use environment variables for all secrets
 
-### JavaScript (n8n Code Nodes)
+### Python (CrewAI Agent Code)
 
 ```javascript
 /**

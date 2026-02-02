@@ -191,15 +191,6 @@ graph TB
 | **LLM flexibility** | Can switch OpenAI ↔ Claude ↔ local |
 | **Developer productivity** | Python > proprietary tools |
 
-### Migration Path from n8n
-
-```
-n8n Workflows → LangFlow Pipelines
-n8n HTTP Calls → LangFlow API nodes
-n8n Code Nodes → CrewAI Agents
-n8n Webhooks → FastAPI endpoints
-```
-
 ---
 
 ## 8. Architecture: AEGIS with CrewAI + LangFlow

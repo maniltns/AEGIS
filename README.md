@@ -14,7 +14,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
-- [What's New in v2.0](#whats-new-in-v20)
+- [Technology Stack](#technology-stack)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Agent Roster](#agent-roster)
@@ -33,30 +33,34 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 | Benefit | Metric | Description |
 |---------|--------|-------------|
 | 🚀 **Faster Triage** | <60 sec | vs 45 min manual |
-| 🛡️ **Alert Suppression** | 95% | Duplicate detection via Storm Shield |
+| 🛡️ **Alert Suppression** | [TBD]% | Duplicate detection via Storm Shield |
 | 🔒 **Glass Box AI** | 100% | Every decision auditable |
-| 💰 **Cost Savings** | 79% | vs UiPath Agentic ($400K over 5 years) |
+| 💰 **Cost Efficient** | Open Source | CrewAI + LangFlow (MIT Licensed) |
 
 ---
 
-## What's New in v2.0
+## Technology Stack
 
-### Stack Migration: n8n → CrewAI + LangFlow
+### Core Components
 
-| Component | v1.x | v2.0 |
-|-----------|------|------|
-| Orchestration | n8n (fair-code) | **CrewAI (MIT)** |
-| Visual Pipelines | n8n UI | **LangFlow (MIT)** |
-| License Cost | $0-$40K/yr | **$0** |
-| Vendor Lock-in | Medium | **None** |
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Agent Framework** | CrewAI | 9-agent autonomous swarm |
+| **Visual Pipelines** | LangFlow | Workflow visualization & building |
+| **API Server** | FastAPI | Webhooks, governance endpoints |
+| **Vector Database** | ChromaDB | RAG knowledge store |
+| **Cache/Governance** | Redis | Kill switch, Storm Shield |
+| **LLM** | Claude/GPT-4o | AI reasoning |
+| **Embeddings** | AWS Titan V2 | Vector embeddings |
 
-### New Features
+### Key Features
 
 - ✅ 9 CrewAI agents with full Python implementation
 - ✅ LangFlow visual pipeline builder
 - ✅ FastAPI webhook server
 - ✅ Enhanced RAG with ChromaDB
 - ✅ Complete governance API
+- ✅ Fully open source (MIT License)
 
 ---
 
@@ -218,11 +222,11 @@ aegis-ops/
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-### v2.0.0 (January 30, 2026)
-- Migrated from n8n to CrewAI + LangFlow
-- Added 9 CrewAI agents with full Python implementation
-- Added LangFlow visual pipeline builder
-- $400K+ savings vs UiPath Agentic
+### v2.0.0 (February 2026)
+- CrewAI + LangFlow orchestration stack
+- 9 CrewAI agents with full Python implementation
+- LangFlow visual pipeline builder
+- Fully open source (MIT License)
 
 ---
 

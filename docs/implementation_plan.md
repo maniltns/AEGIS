@@ -62,7 +62,7 @@ mindmap
         💰 Cost
             88% lower TCO vs NowAssist
             No per-agent licensing
-            Open-source n8n orchestration
+            Open-source CrewAI orchestration
             Self-hosted infrastructure
         🎛️ Control
             Self-hosted in VPC
@@ -150,7 +150,7 @@ AUTHORIZATION REQUIREMENTS:
 
 ACTIVATION FLOW:
 1. Request via Teams Adaptive Card or Webhook
-2. n8n validates requester against Azure AD groups
+2. FastAPI validates requester against Azure AD groups
 3. System sends PIN challenge to requester
 4. Upon PIN verification: SET gov:killswitch false
 5. System logs: activated_by, timestamp, reason
@@ -432,7 +432,7 @@ flowchart LR
 
 ```python
 # Headless Selenium wrapper for ARS Portal
-# Called by JANITOR via n8n Code node or HTTP request
+# Called by JANITOR agent via FastAPI endpoint
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -849,7 +849,7 @@ graph TD
         SNOW_KB[(KB Articles)]
     end
     
-    subgraph "n8n Orchestration"
+    subgraph "CrewAI Orchestration"
         WEBHOOK[Webhook Trigger]
         POLL[Schedule Trigger<br/>POC Only]
         STORM[Storm Shield<br/>Redis Check]
@@ -918,13 +918,13 @@ flowchart TB
 ### 3.3 Deployment Architecture
 
 > [!NOTE]
-> **Infrastructure Overview:** AEGIS is deployed as a containerized solution on AWS with self-managed n8n orchestration.
+> **Infrastructure Overview:** AEGIS is deployed as a containerized solution on AWS with self-managed CrewAI + FastAPI orchestration.
 
 ```mermaid
 graph TB
     subgraph "☁️ AWS Cloud (Sandbox)"
         subgraph "🐳 Docker Host (EC2)"
-            N8N["🔄 N8n Orchestration<br/>Self-Hosted Container"]
+            CREW["👥 CrewAI Agents<br/>FastAPI Server"]
             REDIS["📦 Redis Stack<br/>Deduplication + Governance<br/>Port 6379"]
             INSIGHT["👁️ RedisInsight<br/>Port 8001"]
         end
@@ -958,19 +958,19 @@ graph TB
         PRINTERS["🖨️ Network Printers"]
     end
     
-    %% N8n connections
-    N8N <-->|REST API| SNOW_INC
-    N8N <-->|REST API| SNOW_CASE
-    N8N <-->|REST API| SNOW_RITM
-    N8N <-->|REST API| SNOW_KB
-    N8N <-->|REST API| SNOW_CHG
-    N8N -->|Audit Writes| SNOW_AUDIT
-    N8N <-->|TCP 6379| REDIS
-    N8N -->|Webhooks| TEAMS
-    N8N -->|HTTP/Selenium| ARS
-    N8N -->|OHIP API| OPERA
-    N8N -->|API Calls| OPENAI
-    N8N -->|Invoke| LAMBDA
+    %% CrewAI connections
+    CREW <-->|REST API| SNOW_INC
+    CREW <-->|REST API| SNOW_CASE
+    CREW <-->|REST API| SNOW_RITM
+    CREW <-->|REST API| SNOW_KB
+    CREW <-->|REST API| SNOW_CHG
+    CREW -->|Audit Writes| SNOW_AUDIT
+    CREW <-->|TCP 6379| REDIS
+    CREW -->|Webhooks| TEAMS
+    CREW -->|HTTP/Selenium| ARS
+    CREW -->|OHIP API| OPERA
+    CREW -->|API Calls| OPENAI
+    CREW -->|Invoke| LAMBDA
     
     %% Execution paths
     SSM -->|Remote Exec| WIN
@@ -989,7 +989,7 @@ graph TB
 
 | Component | Technology | Hosting | Purpose |
 |-----------|------------|---------|---------|
-| **Orchestration** | n8n v1.x | AWS EC2 (Docker) | Workflow automation engine |
+| **Orchestration** | CrewAI + FastAPI | AWS EC2 (Docker) | Agent orchestration engine |
 | **Cache/State** | Redis Stack | AWS EC2 (Docker) | Deduplication, governance flags |
 | **AI Engine** | GPT-4o / GPT-4o-mini | OpenAI API | Triage, classification, analysis |
 | **ITSM** | ServiceNow | Accor Cloud Instance | Tickets, KB, audit logging |
@@ -1001,12 +1001,12 @@ graph TB
 
 | Source | Destination | Port | Protocol | Purpose |
 |--------|-------------|------|----------|---------|
-| n8n | ServiceNow | 443 | HTTPS | REST API |
-| n8n | Redis | 6379 | TCP | State management |
-| n8n | OpenAI | 443 | HTTPS | AI inference |
-| n8n | Teams | 443 | HTTPS | Webhooks |
-| n8n | ARS Portal | 443 | HTTPS | Selenium automation |
-| n8n | AWS SSM | 443 | HTTPS | Remote execution |
+| AEGIS API | ServiceNow | 443 | HTTPS | REST API |
+| AEGIS API | Redis | 6379 | TCP | State management |
+| AEGIS API | OpenAI | 443 | HTTPS | AI inference |
+| AEGIS API | Teams | 443 | HTTPS | Webhooks |
+| AEGIS API | ARS Portal | 443 | HTTPS | Selenium automation |
+| AEGIS API | AWS SSM | 443 | HTTPS | Remote execution |
 
 ### 3.4 Layered Architecture (Mermaid)
 
@@ -1016,7 +1016,7 @@ graph TB
         UI_TEAMS["💬 MS Teams<br/>Adaptive Cards"]
         UI_SNOW["📋 ServiceNow Portal<br/>Agent Workspace"]
         UI_INSIGHT["📊 RedisInsight<br/>Monitoring Dashboard"]
-        UI_N8N["🔧 n8n Admin<br/>Workflow Editor"]
+        UI_CrewAI["🔧 CrewAI Admin<br/>Workflow Editor"]
     end
 
     subgraph "Layer 5: API Gateway"
@@ -1027,7 +1027,7 @@ graph TB
     end
 
     subgraph "Layer 4: Application Services"
-        SVC_N8N["🔄 n8n Engine<br/>Workflow Orchestration"]
+        SVC_CrewAI["🔄 CrewAI Engine<br/>Workflow Orchestration"]
         SVC_AGENT["🤖 Agent Controller<br/>Swarm Coordination"]
         SVC_NOTIFY["📢 Notification Service<br/>HERALD"]
         SVC_APPROVE["✅ Approval Service<br/>Human-in-Loop"]
@@ -1058,10 +1058,10 @@ graph TB
     %% Connections between layers
     UI_TEAMS --> API_WEBHOOK
     UI_SNOW --> API_SNOW
-    API_WEBHOOK --> SVC_N8N
-    API_SNOW --> SVC_N8N
-    SVC_N8N --> BIZ_TRIAGE
-    SVC_N8N --> BIZ_GOV
+    API_WEBHOOK --> SVC_CrewAI
+    API_SNOW --> SVC_CrewAI
+    SVC_CrewAI --> BIZ_TRIAGE
+    SVC_CrewAI --> BIZ_GOV
     BIZ_TRIAGE --> DAL_LLM
     BIZ_STORM --> DAL_REDIS
     DAL_REDIS --> INFRA_REDIS
@@ -1086,7 +1086,7 @@ graph LR
     end
 
     subgraph "🔄 Orchestration Layer"
-        N8N["n8n Workflows<br/>10 Active Workflows"]
+        CrewAI["CrewAI Workflows<br/>10 Active Workflows"]
         TRIGGER["Triggers<br/>Poll/Webhook"]
     end
 
@@ -1116,14 +1116,14 @@ graph LR
         SECRETS["Secrets Manager<br/>Credentials"]
     end
 
-    TEAMS --> N8N
-    SNOW_UI --> N8N
-    N8N --> LLM
-    N8N --> PII
+    TEAMS --> CrewAI
+    SNOW_UI --> CrewAI
+    CrewAI --> LLM
+    CrewAI --> PII
     LLM --> TRIAGE
     TRIAGE --> REDIS
     GOVERNANCE --> REDIS
-    N8N --> SNOW_DB
+    CrewAI --> SNOW_DB
     EC2 --> DOCKER
 ```
 
@@ -1145,7 +1145,7 @@ graph TB
 
     subgraph TRUSTED["🔒 Trusted Zone (Private Subnet)"]
         subgraph DOCKER["🐳 Docker Host"]
-            N8N["n8n<br/>:5678"]
+            CrewAI["CrewAI<br/>:5678"]
             REDIS["Redis<br/>:6379 localhost"]
             INSIGHT["RedisInsight<br/>:8001 localhost"]
         end
@@ -1169,16 +1169,16 @@ graph TB
     TEAMS_EXT --> ALB
     SNOW_EXT --> ALB
     ALB --> WEBHOOK
-    WEBHOOK --> N8N
-    N8N --> REDIS
-    N8N --> LAMBDA
+    WEBHOOK --> CrewAI
+    CrewAI --> REDIS
+    CrewAI --> LAMBDA
     LAMBDA --> SSM
     SSM --> WIN
     SSM --> LINUX
-    N8N --> OPENAI_EXT
-    N8N --> ARS
-    N8N --> OPERA
-    SECRETS --> N8N
+    CrewAI --> OPENAI_EXT
+    CrewAI --> ARS
+    CrewAI --> OPERA
+    SECRETS --> CrewAI
     KMS --> SECRETS
 
     classDef dmz fill:#FFF3E0,stroke:#E65100
@@ -1304,7 +1304,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
 
 ---
 
-## 5. n8n Workflow Implementations
+## 5. CrewAI Workflow Implementations
 
 ### 5.1 Storm Shield Sub-Workflow
 
@@ -1320,7 +1320,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsonExample": "{\n  \"ci_name\": \"PRINTER-NYC-01\",\n  \"error_string\": \"Paper Jam\",\n  \"incident_sys_id\": \"abc123\"\n}"
       },
       "name": "Trigger",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "type": "CrewAI-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [-400, 0],
       "id": "trigger-001"
@@ -1330,7 +1330,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsCode": "// Generate fingerprint hash\nconst crypto = require('crypto');\nconst ci = $json.ci_name || 'unknown';\nconst err = $json.error_string || '';\nconst raw = `${ci}::${err}`.toLowerCase().trim();\nconst hash = crypto.createHash('md5').update(raw).digest('hex');\n\nreturn {\n  json: {\n    fingerprint: hash,\n    raw_key: raw,\n    incident_sys_id: $json.incident_sys_id\n  }\n};"
       },
       "name": "Generate Fingerprint",
-      "type": "n8n-nodes-base.code",
+      "type": "CrewAI-nodes-base.code",
       "typeVersion": 2,
       "position": [-200, 0],
       "id": "fingerprint-001"
@@ -1342,7 +1342,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "expire": 900
       },
       "name": "Redis INCR",
-      "type": "n8n-nodes-base.redis",
+      "type": "CrewAI-nodes-base.redis",
       "typeVersion": 1,
       "position": [0, 0],
       "id": "redis-001",
@@ -1366,7 +1366,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "First Occurrence?",
-      "type": "n8n-nodes-base.if",
+      "type": "CrewAI-nodes-base.if",
       "typeVersion": 1,
       "position": [200, 0],
       "id": "if-001"
@@ -1381,7 +1381,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "PASS",
-      "type": "n8n-nodes-base.set",
+      "type": "CrewAI-nodes-base.set",
       "typeVersion": 1,
       "position": [400, -100],
       "id": "pass-001"
@@ -1396,7 +1396,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "BLOCK",
-      "type": "n8n-nodes-base.set",
+      "type": "CrewAI-nodes-base.set",
       "typeVersion": 1,
       "position": [400, 100],
       "id": "block-001"
@@ -1430,7 +1430,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsonExample": "{}"
       },
       "name": "Trigger",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "type": "CrewAI-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [-200, 0],
       "id": "trigger-ks"
@@ -1441,7 +1441,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "key": "gov:killswitch"
       },
       "name": "Get Kill Switch",
-      "type": "n8n-nodes-base.redis",
+      "type": "CrewAI-nodes-base.redis",
       "typeVersion": 1,
       "position": [0, 0],
       "id": "redis-ks",
@@ -1458,7 +1458,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "key": "gov:mode"
       },
       "name": "Get Mode",
-      "type": "n8n-nodes-base.redis",
+      "type": "CrewAI-nodes-base.redis",
       "typeVersion": 1,
       "position": [0, 150],
       "id": "redis-mode",
@@ -1474,7 +1474,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsCode": "const killswitch = $('Get Kill Switch').first().json.value;\nconst mode = $('Get Mode').first().json.value || 'observe';\n\nreturn {\n  json: {\n    killswitch_active: killswitch === 'false' || killswitch === false,\n    governance_mode: mode,\n    can_write: killswitch !== 'false' && killswitch !== false,\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "name": "Evaluate",
-      "type": "n8n-nodes-base.code",
+      "type": "CrewAI-nodes-base.code",
       "typeVersion": 2,
       "position": [200, 75],
       "id": "eval-ks"
@@ -1508,7 +1508,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
       },
       "name": "Every 5 Mins",
-      "type": "n8n-nodes-base.scheduleTrigger",
+      "type": "CrewAI-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [-800, 200],
       "id": "sched-001"
@@ -1523,7 +1523,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Fetch All Tiers",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [-600, 200],
       "id": "fetch-001",
@@ -1537,7 +1537,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
     {
       "parameters": { "batchSize": 1, "options": {} },
       "name": "Process Each",
-      "type": "n8n-nodes-base.splitInBatches",
+      "type": "CrewAI-nodes-base.splitInBatches",
       "typeVersion": 2,
       "position": [-400, 200],
       "id": "split-001"
@@ -1548,7 +1548,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "options": {}
       },
       "name": "Storm Shield",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "type": "CrewAI-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [-200, 200],
       "id": "storm-001"
@@ -1566,7 +1566,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Storm Check",
-      "type": "n8n-nodes-base.if",
+      "type": "CrewAI-nodes-base.if",
       "typeVersion": 1,
       "position": [0, 200],
       "id": "if-storm"
@@ -1577,7 +1577,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "options": {}
       },
       "name": "Check Governance",
-      "type": "n8n-nodes-base.executeWorkflow",
+      "type": "CrewAI-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [200, 100],
       "id": "gov-001"
@@ -1595,7 +1595,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Can Write?",
-      "type": "n8n-nodes-base.if",
+      "type": "CrewAI-nodes-base.if",
       "typeVersion": 1,
       "position": [400, 100],
       "id": "if-write"
@@ -1607,7 +1607,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "options": {}
       },
       "name": "Get Caller",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [600, 0],
       "id": "caller-001",
@@ -1628,7 +1628,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "AI Triage",
-      "type": "@n8n/n8n-nodes-langchain.agent",
+      "type": "@CrewAI/CrewAI-nodes-langchain.agent",
       "typeVersion": 1.6,
       "position": [800, 0],
       "id": "ai-001"
@@ -1639,7 +1639,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "options": { "temperature": 0.1 }
       },
       "name": "GPT-4o",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "type": "@CrewAI/CrewAI-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [800, 200],
       "id": "llm-001",
@@ -1658,7 +1658,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "responsePropertyName": "result"
       },
       "name": "KB Tool",
-      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "type": "@CrewAI/CrewAI-nodes-langchain.toolWorkflow",
       "typeVersion": 1,
       "position": [900, 200],
       "id": "kb-001"
@@ -1668,7 +1668,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsCode": "const raw = $json.output || '';\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  if (match) return { json: JSON.parse(match[0]) };\n  throw new Error('No JSON');\n} catch (e) {\n  return {\n    json: {\n      assessment: 'Parse error: ' + raw.substring(0, 100),\n      risk_level: 'Medium',\n      confidence: 0.5,\n      escalation_required: true\n    }\n  };\n}"
       },
       "name": "Parse Response",
-      "type": "n8n-nodes-base.code",
+      "type": "CrewAI-nodes-base.code",
       "typeVersion": 2,
       "position": [1000, 0],
       "id": "parse-001"
@@ -1684,7 +1684,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Update SNOW",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [1200, -100],
       "id": "update-001",
@@ -1704,7 +1704,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsonBody": "={\n  \"type\": \"message\",\n  \"attachments\": [{\n    \"contentType\": \"application/vnd.microsoft.card.adaptive\",\n    \"content\": {\n      \"type\": \"AdaptiveCard\",\n      \"version\": \"1.4\",\n      \"body\": [\n        {\"type\": \"TextBlock\", \"text\": \"🤖 ITS: {{ $('Process Each').item.json.number }}\", \"weight\": \"Bolder\", \"size\": \"Medium\"},\n        {\"type\": \"TextBlock\", \"text\": \"{{ $json.assessment }}\", \"wrap\": true},\n        {\"type\": \"FactSet\", \"facts\": [\n          {\"title\": \"Risk\", \"value\": \"{{ $json.risk_level }}\"},\n          {\"title\": \"Confidence\", \"value\": \"{{ Math.round($json.confidence * 100) }}%\"}\n        ]}\n      ],\n      \"actions\": [{\"type\": \"Action.OpenUrl\", \"title\": \"View Ticket\", \"url\": \"https://myaccortrain.service-now.com/incident.do?sys_id={{ $('Process Each').item.json.sys_id }}\"}]\n    }\n  }]\n}"
       },
       "name": "Notify Teams",
-      "type": "n8n-nodes-base.httpRequest",
+      "type": "CrewAI-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [1200, 100],
       "id": "teams-001"
@@ -1720,7 +1720,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Log Only (Observe)",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [400, 300],
       "id": "observe-001",
@@ -1742,7 +1742,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Log Blocked",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [0, 400],
       "id": "blocked-001",
@@ -1796,7 +1796,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "rule": { "interval": [{ "field": "minutes", "minutesInterval": 5 }] }
       },
       "name": "Every 5 Mins",
-      "type": "n8n-nodes-base.scheduleTrigger",
+      "type": "CrewAI-nodes-base.scheduleTrigger",
       "typeVersion": 1.1,
       "position": [-600, 200],
       "id": "sched-case"
@@ -1813,7 +1813,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Fetch Cases Needing INC",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [-400, 200],
       "id": "fetch-case",
@@ -1827,7 +1827,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
     {
       "parameters": { "batchSize": 1 },
       "name": "Process Each",
-      "type": "n8n-nodes-base.splitInBatches",
+      "type": "CrewAI-nodes-base.splitInBatches",
       "typeVersion": 2,
       "position": [-200, 200],
       "id": "split-case"
@@ -1842,7 +1842,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "AI Classify",
-      "type": "@n8n/n8n-nodes-langchain.agent",
+      "type": "@CrewAI/CrewAI-nodes-langchain.agent",
       "typeVersion": 1.6,
       "position": [0, 200],
       "id": "ai-case"
@@ -1853,7 +1853,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "options": { "temperature": 0 }
       },
       "name": "GPT-4o-mini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "type": "@CrewAI/CrewAI-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [0, 400],
       "id": "llm-case",
@@ -1869,7 +1869,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         "jsCode": "const raw = $json.output || '';\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  if (match) return { json: JSON.parse(match[0]) };\n  throw new Error('No JSON');\n} catch (e) {\n  return { json: { create_incident: false, justification: 'Parse error' } };\n}"
       },
       "name": "Parse",
-      "type": "n8n-nodes-base.code",
+      "type": "CrewAI-nodes-base.code",
       "typeVersion": 2,
       "position": [200, 200],
       "id": "parse-case"
@@ -1881,7 +1881,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Create INC?",
-      "type": "n8n-nodes-base.if",
+      "type": "CrewAI-nodes-base.if",
       "typeVersion": 1,
       "position": [400, 200],
       "id": "if-case"
@@ -1902,7 +1902,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Create Incident",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [600, 100],
       "id": "create-inc",
@@ -1926,7 +1926,7 @@ docker exec its-redis redis-cli SET gov:mode "assist"
         }
       },
       "name": "Update Case",
-      "type": "n8n-nodes-base.serviceNow",
+      "type": "CrewAI-nodes-base.serviceNow",
       "typeVersion": 1,
       "position": [800, 100],
       "id": "update-case",
@@ -1959,11 +1959,11 @@ docker exec its-redis redis-cli SET gov:mode "assist"
 
 ## 6. Environment Configuration
 
-### 6.1 n8n Environment Variables
+### 6.1 CrewAI Environment Variables
 
 ```bash
-# n8n instance configuration
-N8N_ENCRYPTION_KEY=your-secure-key-here
+# CrewAI instance configuration
+CrewAI_ENCRYPTION_KEY=your-secure-key-here
 EXECUTIONS_MODE=queue  # For production
 
 # External services
@@ -1977,7 +1977,7 @@ ITS_KILL_SWITCH_DEFAULT=true
 ITS_GOVERNANCE_MODE=assist
 ```
 
-### 6.2 n8n Credential Configuration
+### 6.2 CrewAI Credential Configuration
 
 | Credential Name | Type | Required Fields |
 |-----------------|------|-----------------|
@@ -2025,7 +2025,7 @@ docker exec its-redis redis-cli SET gov:killswitch true
 | Risk | Impact | Mitigation | Owner |
 |------|--------|------------|-------|
 | LLM Hallucination | High | Kill switch + human review | AI Architect |
-| Teams API Throttling | Medium | Rate limiting in n8n | DevOps |
+| Teams API Throttling | Medium | Rate limiting in CrewAI | DevOps |
 | Redis Downtime | High | AWS backup + fallback to pass-through | DevOps |
 | SNOW API Limits | Medium | Batch processing, caching | DevOps |
 | PII in Logs | High | Add regex scrubber before AI | AI Architect |
@@ -2130,4 +2130,5 @@ The `pii-scrubber.json` workflow detects and redacts:
 > 3. Finalize workshop agenda with stakeholders
 > 4. Configure Azure AD groups for Kill Switch authorization
 > 5. Review PII patterns for Accor-specific data
+
 

@@ -323,7 +323,7 @@ graph TB
 | Tier | Team | Responsibilities |
 |------|------|------------------|
 | **L1** | Operations | Monitor dashboards, restart workflows, kill switch |
-| **L2** | Technical | Debug n8n errors, fix integrations, tune prompts |
+| **L2** | Technical | Debug workflow errors, fix integrations, tune prompts |
 | **L3** | Engineering | Architecture changes, new agents, model retraining |
 
 ---

@@ -1,7 +1,8 @@
-# AEGIS v2.0 - Comprehensive Setup Guide
+# AEGIS v2.0 - Setup Guide
 
-**CrewAI + LangFlow Stack**  
-*Migrated from n8n | January 2026*
+**Platform:** Autonomous IT Operations & Swarming Platform  
+**Stack:** CrewAI + LangFlow  
+**Version:** 2.0.0 | February 2026
 
 ---
 
@@ -11,7 +12,7 @@
 
 - Docker & Docker Compose
 - Python 3.11+
-- AWS Account (for Bedrock/Titan)
+- AWS Account (for Bedrock & Titan)
 - ServiceNow Instance
 - Microsoft Teams Webhook
 
@@ -138,7 +139,7 @@ POST /webhook/incident
 {
   "status": "accepted",
   "incident_number": "INC0012345",
-  "triage_id": "TRG20260130180500123",
+  "triage_id": "TRG20260202180500123",
   "message": "Incident queued for AI triage"
 }
 ```
@@ -300,7 +301,7 @@ curl -X POST http://localhost:8000/governance/killswitch \
 
 ```bash
 # Recommended: t3.xlarge (4 vCPU, 16 GB RAM)
-# For 30K tickets/month
+# For [TBD] tickets/month
 
 # Install Docker
 sudo yum install -y docker
@@ -326,4 +327,4 @@ docker-compose -f docker/docker-compose.yml up -d
 
 ---
 
-*Document Version: 2.0.0 | Last Updated: January 30, 2026*
+*Document Version: 2.0.0 | Last Updated: February 2, 2026*

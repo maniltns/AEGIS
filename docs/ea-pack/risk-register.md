@@ -205,17 +205,17 @@
 
 ---
 
-### RISK-010: n8n Workflow Corruption
+### RISK-010: Agent Workflow Failure
 
 | Attribute | Value |
 |-----------|-------|
-| **Risk** | Workflow JSON corrupted, automation fails |
+| **Risk** | CrewAI agent code error, automation fails |
 | **Impact** | Medium – Manual triage required temporarily |
 | **Probability** | Low |
 | **Risk Score** | 🟡 Medium |
 
 **Mitigation:**
-- Git version control for all workflows
+- Git version control for all agent code
 - Automated backup before changes
 - Rollback procedure documented
 - Container restart within 10 minutes
@@ -297,7 +297,7 @@
 | **Risk Score** | 🟡 Medium |
 
 **Mitigation:**
-- Real-time dashboard (n8n UI)
+- Real-time dashboard (LangFlow UI)
 - RedisInsight for Storm Shield
 - ServiceNow audit log queries
 - Splunk integration (planned)

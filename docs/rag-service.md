@@ -183,29 +183,28 @@ Health check endpoint.
 
 ---
 
-## n8n Integration
+## CrewAI Integration
 
-### HTTP Node Configuration
+### Tool Configuration
 
-In n8n, use the HTTP Request node with these settings:
+The RAG service is accessed via CrewAI tools in `agents/tools/rag_tools.py`:
 
-| Setting | Value |
-|---------|-------|
-| **Method** | POST |
-| **URL** | `http://aegis-rag:8000/api/v1/analyze` |
-| **Authentication** | None (internal network) |
-| **Content-Type** | application/json |
+| Tool | Endpoint | Purpose |
+|------|----------|---------|
+| `search_similar_incidents` | `/search` | Vector similarity search |
+| `analyze_incident` | `/analyze` | Full RAG analysis |
+| `get_resolution_recommendations` | `/recommend` | Resolution suggestions |
 
-### Request Body (Expression)
+### Request Body (Python)
 
-```javascript
-{{ JSON.stringify({
-  "short_description": $json.short_description,
-  "description": $json.description,
-  "caller": $json.caller_id?.display_value || $json.caller_id,
-  "category": $json.category,
-  "priority": $json.priority
-}) }}
+```python
+# From rag_tools.py
+result = await client.post("analyze", {
+    "short_description": incident.short_description,
+    "description": incident.description,
+    "current_category": incident.category,
+    "ci_name": incident.cmdb_ci
+})
 ```
 
 ### Workflow Integration

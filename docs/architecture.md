@@ -1,8 +1,8 @@
 # 🛡️ AEGIS Architecture Overview
 
-**Project:** AEGIS - Autonomous Expert for Governance, Intelligence & Swarming  
-**Client:** Accor Hotels
-
+**Project:** AEGIS - Autonomous IT Operations & Swarming Platform  
+**Client:** Accor Hotels  
+**Stack:** CrewAI + LangFlow
 
 ## System Context Diagram (Mermaid)
 
@@ -11,23 +11,26 @@ graph TB
     subgraph "🌐 External Systems"
         SNOW["📋 ServiceNow<br/>ITSM"]
         TEAMS["💬 MS Teams<br/>Collaboration"]
-        OPENAI["🧠 OpenAI<br/>AI"]
+        OPENAI["🧠 OpenAI/Claude<br/>AI"]
         ARS["🔐 ARS Portal<br/>Identity"]
         OPERA["🏨 PMS Opera<br/>Hotels"]
     end
 
     subgraph "🛡️ AEGIS Core"
-        N8N["🔄 n8n<br/>Orchestration"]
+        CREW["👥 CrewAI<br/>9 Agents"]
+        API["⚡ FastAPI<br/>Webhooks"]
+        LF["🎨 LangFlow<br/>Pipelines"]
         REDIS["📦 Redis<br/>State"]
-        DOCKER["🐳 Docker<br/>Container"]
     end
 
-    SNOW <--> N8N
-    TEAMS <--> N8N
-    OPENAI <--> N8N
-    ARS <--> N8N
-    OPERA <--> N8N
-    N8N <--> REDIS
+    SNOW <--> API
+    TEAMS <--> API
+    API --> CREW
+    CREW --> OPENAI
+    CREW --> ARS
+    CREW --> OPERA
+    CREW <--> REDIS
+    LF --> CREW
 ```
 
 ---
@@ -40,7 +43,7 @@ graph TB
         UI_TEAMS["💬 MS Teams<br/>Adaptive Cards"]
         UI_SNOW["📋 ServiceNow Portal"]
         UI_INSIGHT["📊 RedisInsight"]
-        UI_N8N["🔧 n8n Admin"]
+        UI_LF["🎨 LangFlow UI"]
     end
 
     subgraph "Layer 5: API Gateway"
@@ -51,8 +54,8 @@ graph TB
     end
 
     subgraph "Layer 4: Application Services"
-        SVC_N8N["🔄 n8n Engine"]
-        SVC_AGENT["🤖 Agent Controller"]
+        SVC_API["⚡ FastAPI Server"]
+        SVC_AGENT["👥 CrewAI Agents"]
         SVC_NOTIFY["📢 HERALD"]
         SVC_APPROVE["✅ Approval Service"]
     end
@@ -81,8 +84,9 @@ graph TB
 
     UI_TEAMS --> API_WEBHOOK
     UI_SNOW --> API_SNOW
-    API_WEBHOOK --> SVC_N8N
-    SVC_N8N --> BIZ_TRIAGE
+    API_WEBHOOK --> SVC_API
+    SVC_API --> SVC_AGENT
+    SVC_AGENT --> BIZ_TRIAGE
     BIZ_TRIAGE --> DAL_LLM
     BIZ_STORM --> DAL_REDIS
     DAL_REDIS --> INFRA_REDIS
@@ -155,7 +159,8 @@ graph TB
 
     subgraph TRUSTED["🔒 Trusted Zone"]
         subgraph DOCKER["🐳 Docker Host"]
-            N8N["n8n :5678"]
+            API["FastAPI :8000"]
+            LF["LangFlow :7860"]
             REDIS["Redis :6379"]
             INSIGHT["RedisInsight :8001"]
         end
@@ -179,16 +184,16 @@ graph TB
     TEAMS_EXT --> ALB
     SNOW_EXT --> ALB
     ALB --> WEBHOOK
-    WEBHOOK --> N8N
-    N8N --> REDIS
-    N8N --> LAMBDA
+    WEBHOOK --> API
+    API --> REDIS
+    API --> LAMBDA
     LAMBDA --> SSM
     SSM --> WIN
     SSM --> LINUX
-    N8N --> OPENAI_EXT
-    N8N --> ARS
-    N8N --> OPERA
-    SECRETS --> N8N
+    API --> OPENAI_EXT
+    API --> ARS
+    API --> OPERA
+    SECRETS --> API
     KMS --> SECRETS
 ```
 
@@ -260,6 +265,6 @@ flowchart LR
 | Identity | SSO | Azure AD |
 | Identity | MFA | Conditional Access |
 | Data | Encryption at Rest | AWS EBS, Redis AOF |
-| Data | PII Protection | pii-scrubber workflow |
+| Data | PII Protection | PII scrubber agent |
 | Access | RBAC | Azure AD Groups |
 | Audit | Logging | ServiceNow u_ai_audit_log |

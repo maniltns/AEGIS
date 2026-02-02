@@ -18,7 +18,7 @@
 ## 🎬 Live Demo Script (20 minutes)
 
 ### Pre-Demo Checklist
-- [ ] n8n running at http://localhost:5678
+- [ ] AEGIS API running at http://localhost:8000
 - [ ] Redis running with governance keys set
 - [ ] ServiceNow Train instance accessible
 - [ ] Teams channel ready for notifications
@@ -32,7 +32,7 @@
 
 **Steps:**
 1. Show Redis is empty: `redis-cli KEYS storm:*`
-2. Create first incident → Show PASS in n8n
+2. Create first incident → Show PASS in LangFlow
 3. Create 4 more identical incidents → Show BLOCK count
 4. View work notes: "🛡️ GUARDIAN - Duplicate blocked #2, #3, #4, #5"
 

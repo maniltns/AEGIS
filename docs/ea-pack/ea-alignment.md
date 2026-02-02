@@ -77,7 +77,8 @@
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| n8n | Workflow Engine | Orchestration |
+| CrewAI | Agent Framework | 9-agent orchestration |
+| LangFlow | Visual Builder | Pipeline design |
 | Redis | In-Memory Store | State, deduplication |
 | ChromaDB | Vector DB | RAG embeddings |
 | FastAPI | API Server | RAG service |
@@ -99,7 +100,7 @@ graph LR
     end
 
     subgraph "AEGIS Platform"
-        N8N["🔄 n8n"]
+        CREW["👥 CrewAI"]
         RAG["🧠 RAG Service"]
         REDIS["📦 Redis"]
     end
@@ -110,14 +111,14 @@ graph LR
         SSM["🔧 AWS SSM"]
     end
 
-    SNOW -->|API| N8N
-    TEAMS -->|Webhook| N8N
-    AAD -->|OAuth| N8N
-    N8N --> RAG
-    N8N --> REDIS
-    N8N -->|Selenium| ARS
-    N8N -->|OHIP| OPERA
-    N8N -->|API| SSM
+    SNOW -->|API| CREW
+    TEAMS -->|Webhook| CREW
+    AAD -->|OAuth| CREW
+    CREW --> RAG
+    CREW --> REDIS
+    CREW -->|Selenium| ARS
+    CREW -->|OHIP| OPERA
+    CREW -->|API| SSM
 ```
 
 ### Integration Patterns
@@ -226,12 +227,12 @@ graph LR
 
 ## 7. Architecture Decision Records (ADRs)
 
-### ADR-001: n8n over Custom Code
+### ADR-001: CrewAI + LangFlow for Orchestration
 
-- **Decision:** Use n8n for workflow orchestration
-- **Rationale:** Visual design, rapid iteration, low-code
-- **Alternatives:** Python scripts, AWS Step Functions
-- **Consequences:** Accept n8n maintenance dependency
+- **Decision:** Use CrewAI for agent orchestration with LangFlow visual pipelines
+- **Rationale:** Open source (MIT), AI-native agents, visual design
+- **Alternatives:** Python scripts, AWS Step Functions, UiPath Agentic
+- **Consequences:** Python-based agent code, self-hosted stack
 
 ### ADR-002: Redis over Database
 
