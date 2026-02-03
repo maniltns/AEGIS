@@ -32,7 +32,7 @@
 
 **Steps:**
 1. Show Redis is empty: `redis-cli KEYS storm:*`
-2. Create first incident → Show PASS in LangFlow
+2. Create first incident → Show PASS in Admin Portal logs
 3. Create 4 more identical incidents → Show BLOCK count
 4. View work notes: "🛡️ GUARDIAN - Duplicate blocked #2, #3, #4, #5"
 
@@ -46,8 +46,8 @@
 
 **Steps:**
 1. Create incident with vague description
-2. Show workflow executing: GUARDIAN → SCOUT → SHERLOCK
-3. Highlight SHERLOCK work notes:
+2. Show LangGraph pipeline executing: Guardrails → Enrichment → Triage LLM
+3. Highlight work notes:
    - Assessment
    - Root cause (likely AP issue)
    - KB article suggestion

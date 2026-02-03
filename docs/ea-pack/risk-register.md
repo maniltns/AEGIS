@@ -209,7 +209,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Risk** | CrewAI agent code error, automation fails |
+| **Risk** | LangGraph pipeline error, automation fails |
 | **Impact** | Medium – Manual triage required temporarily |
 | **Probability** | Low |
 | **Risk Score** | 🟡 Medium |
@@ -297,7 +297,7 @@
 | **Risk Score** | 🟡 Medium |
 
 **Mitigation:**
-- Real-time dashboard (LangFlow UI)
+- Real-time dashboard (Admin Portal)
 - RedisInsight for Storm Shield
 - ServiceNow audit log queries
 - Splunk integration (planned)

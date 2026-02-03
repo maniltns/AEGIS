@@ -1,7 +1,7 @@
 # AEGIS Architecture Diagrams
 
 **Document:** Technical Architecture Diagrams  
-**Version:** 2.0.0 | CrewAI + LangFlow Stack
+**Version:** 2.1.0 | LangGraph Pipeline
 
 ---
 
@@ -9,9 +9,9 @@
 
 | Diagram | Purpose |
 |---------|---------|
-| [Technology Stack](#technology-stack) | All technologies and brand logos |
+| [Technology Stack](#technology-stack) | All technologies |
 | [Layered Architecture](#layered-architecture) | 5-layer system design |
-| [Agent Swarm](#crewai-agent-swarm) | 9 CrewAI agents |
+| [LangGraph Pipeline](#langgraph-pipeline) | 4-node triage flow |
 | [Data Flow](#incident-processing-flow) | Ticket processing |
 | [Governance](#governance-architecture) | Kill switch, approvals |
 
@@ -19,32 +19,22 @@
 
 ## Technology Stack
 
-### Professional Architecture Images
-
-![AEGIS 5-Layer Architecture](images/layered-architecture.png)
-
----
-
-![AEGIS Technology Stack](images/technology-stack.png)
-
----
-
-### Technology Components (Mermaid)
+### Technology Components (v2.1)
 
 ```mermaid
 graph TB
-    subgraph TECH["🏢 AEGIS v2.0 Technology Stack"]
+    subgraph TECH["🏢 AEGIS v2.1 Technology Stack"]
         direction LR
         
         subgraph AI["🧠 AI/ML"]
-            CLAUDE["🤖 Claude Sonnet"]
+            CLAUDE["🤖 Claude 3.5"]
             GPT["🧠 GPT-4o"]
             TITAN["📐 AWS Titan"]
         end
         
-        subgraph ORCH["🔄 Orchestration"]
-            CREW["👥 CrewAI"]
-            LFLOW["🎨 LangFlow"]
+        subgraph PIPELINE["🔄 Pipeline"]
+            LGRAPH["🔄 LangGraph"]
+            PRESIDIO["🔒 Presidio"]
             FAPI["⚡ FastAPI"]
         end
         
@@ -62,7 +52,7 @@ graph TB
     
     style TECH fill:#1a1a2e,stroke:#16213e,color:#fff
     style AI fill:#412991,stroke:#31206d,color:#fff
-    style ORCH fill:#EA4B71,stroke:#c23a5a,color:#fff
+    style PIPELINE fill:#EA4B71,stroke:#c23a5a,color:#fff
     style DATA fill:#DC382D,stroke:#b32d24,color:#fff
     style INTEG fill:#FF9900,stroke:#cc7a00,color:#fff
 ```
@@ -76,46 +66,40 @@ graph TB
 ```mermaid
 graph TB
     subgraph L5["Layer 5: LLM Inference"]
-        CLAUDE["🤖 Claude Sonnet 4"]
+        CLAUDE["🤖 Claude 3.5"]
         GPT4["🧠 GPT-4o"]
         TITAN["📐 Titan Embeddings"]
-        SPLUNK["📊 Splunk"]
     end
     
-    subgraph L4["Layer 4: AI Engine"]
-        subgraph CREW["👥 CrewAI Agent Swarm"]
-            G["🛡️ GUARDIAN"]
-            SC["🔍 SCOUT"]
-            SH["🕵️ SHERLOCK"]
-            R["🎯 ROUTER"]
-            A["⚖️ ARBITER"]
-            H["📢 HERALD"]
-            SCR["📝 SCRIBE"]
-            B["🌉 BRIDGE"]
-            J["🧹 JANITOR"]
+    subgraph L4["Layer 4: AI Pipeline"]
+        subgraph GRAPH["🔄 LangGraph Pipeline"]
+            N1["🛡️ Guardrails"]
+            N2["🔍 Enrichment"]
+            N3["🧠 Triage LLM"]
+            N4["⚡ Executor"]
         end
         
         subgraph RAG["🧠 RAG Engine"]
             FAPI["⚡ FastAPI"]
             CHROMA["🔍 ChromaDB"]
         end
+        
+        PII["🔒 Presidio<br/>PII Scrubber"]
     end
     
-    subgraph L3["Layer 3: Middleware"]
-        REDIS["📦 Redis<br/>Governance + Cache"]
-        AAD["🔐 Azure AD"]
-        SSM["🔧 AWS SSM"]
+    subgraph L3["Layer 3: Queue & Governance"]
+        REDIS["📦 Redis<br/>Queue + State"]
+        WORKER["👷 Workers<br/>x2 Replicas"]
     end
     
-    subgraph L2["Layer 2: Orchestration"]
-        LFLOW["🎨 LangFlow<br/>Visual Pipelines"]
+    subgraph L2["Layer 2: API & Admin"]
         API["⚡ AEGIS API<br/>FastAPI"]
+        ADMIN["🖥️ Admin Portal<br/>React"]
     end
     
     subgraph L1["Layer 1: Presentation"]
         SNOW["📋 ServiceNow"]
         TEAMS["💬 MS Teams"]
-        WEB["🌐 Browser"]
     end
     
     L1 --> L2 --> L3 --> L4 --> L5
@@ -129,65 +113,50 @@ graph TB
 
 ---
 
-## CrewAI Agent Swarm
+## LangGraph Pipeline
 
-### 9-Agent Architecture
+### 4-Node Triage Architecture
 
 ```mermaid
 graph TB
-    subgraph SWARM["👥 AEGIS CrewAI Agent Swarm"]
+    subgraph PIPELINE["🔄 AEGIS LangGraph Pipeline"]
         direction TB
         
         subgraph INTAKE["📥 Intake"]
-            GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield<br/><i>Duplicate detection</i>"]
-            SCOUT["🔍 SCOUT<br/>Enrichment<br/><i>Context gathering</i>"]
+            N1["🛡️ GUARDRAILS<br/>PII Scrub + Vector Dedup<br/><i>~200ms</i>"]
+        end
+        
+        subgraph CONTEXT["🔍 Context"]
+            N2["🔍 ENRICHMENT<br/>KB + User + CI<br/><i>~500ms</i>"]
         end
         
         subgraph TRIAGE["🧠 Triage"]
-            SHERLOCK["🕵️ SHERLOCK<br/>AI Triage<br/><i>Classification + RCA</i>"]
-            ROUTER["🎯 ROUTER<br/>Assignment<br/><i>Skills matching</i>"]
-        end
-        
-        subgraph GOVERNANCE["⚖️ Governance"]
-            ARBITER["⚖️ ARBITER<br/>Governance<br/><i>Approval gate</i>"]
-            SCRIBE["📝 SCRIBE<br/>Audit<br/><i>Compliance logging</i>"]
+            N3["🧠 TRIAGE LLM<br/>1 Call Only<br/><i>~2-3s</i>"]
         end
         
         subgraph OUTPUT["📤 Output"]
-            HERALD["📢 HERALD<br/>Notifications<br/><i>Teams messaging</i>"]
-            JANITOR["🧹 JANITOR<br/>Remediation<br/><i>Auto-fix</i>"]
-        end
-        
-        subgraph SPECIAL["🔄 Special"]
-            BRIDGE["🌉 BRIDGE<br/>Case→Incident<br/><i>Conversion</i>"]
+            N4["⚡ EXECUTOR<br/>SNOW + Teams + SSM<br/><i>~500ms</i>"]
         end
     end
     
-    GUARDIAN --> SCOUT --> SHERLOCK --> ROUTER --> ARBITER
-    ARBITER --> HERALD
-    ARBITER --> JANITOR
-    ARBITER --> SCRIBE
+    N1 -->|Pass| N2 --> N3 --> N4
+    N1 -->|Duplicate| AUDIT["📊 Audit Log"]
     
-    style SWARM fill:#1a1a2e,stroke:#16213e,color:#fff
+    style PIPELINE fill:#1a1a2e,stroke:#16213e,color:#fff
     style INTAKE fill:#2196f3,stroke:#1976d2,color:#fff
-    style TRIAGE fill:#4caf50,stroke:#388e3c,color:#fff
-    style GOVERNANCE fill:#ff9800,stroke:#f57c00,color:#fff
+    style CONTEXT fill:#4caf50,stroke:#388e3c,color:#fff
+    style TRIAGE fill:#ff9800,stroke:#f57c00,color:#fff
     style OUTPUT fill:#9c27b0,stroke:#7b1fa2,color:#fff
 ```
 
-### Agent Responsibilities
+### Pipeline Node Details
 
-| Agent | Tools | Key Outputs |
-|-------|-------|-------------|
-| **GUARDIAN** | redis.check_duplicate, redis.get_storm_status | is_duplicate, storm_active |
-| **SCOUT** | snow.get_user, snow.get_ci, rag.search | enriched_context |
-| **SHERLOCK** | rag.analyze, rag.recommend | classification, confidence |
-| **ROUTER** | snow.get_groups, snow.get_workload | assignment_group |
-| **ARBITER** | redis.check_killswitch, teams.request_approval | approved/rejected |
-| **HERALD** | teams.send_card, teams.create_swarm | notification_sent |
-| **SCRIBE** | redis.log_decision, snow.add_worknote | audit_id |
-| **JANITOR** | snow.get_changes, redis.log_remediation | execution_result |
-| **BRIDGE** | snow.get_case, snow.create_incident | incident_number |
+| Node | Function | Duration | Key Tools |
+|------|----------|----------|-----------|
+| **Guardrails** | PII scrub (Presidio) + Vector dedup (90% similarity) | ~200ms | `scrub_text`, `check_duplicate_vector` |
+| **Enrichment** | KB search + User info + CI details | ~500ms | `search_kb_articles`, `get_user_info`, `get_ci_info` |
+| **Triage LLM** | Single LLM call: classify + route + action | ~2-3s | Claude/GPT-4o API |
+| **Executor** | Update SNOW + Send Teams + Optional auto-heal | ~500ms | `update_incident`, `send_triage_card`, `run_ssm_command` |
 
 ---
 
@@ -201,15 +170,13 @@ flowchart TB
     
     subgraph API["⚡ AEGIS API"]
         WH["Webhook<br/>Handler"]
-        KS{{"🛑 Kill<br/>Switch?"}}
+        PII["🔒 PII<br/>Scrub"]
+        QUEUE["📦 Redis<br/>Queue"]
     end
     
-    subgraph CREW["👥 CrewAI Crew"]
-        G["🛡️ GUARDIAN"]
-        S["🔍 SCOUT"]
-        SH["🕵️ SHERLOCK"]
-        R["🎯 ROUTER"]
-        A["⚖️ ARBITER"]
+    subgraph WORKER["👷 Triage Worker"]
+        KS{{"🛑 Kill<br/>Switch?"}}
+        GRAPH["🔄 LangGraph<br/>Pipeline"]
     end
     
     subgraph DECISION["📊 Decision"]
@@ -222,17 +189,17 @@ flowchart TB
         TEAMS["💬 Teams<br/>Card"]
     end
     
-    SNOW --> WH --> KS
-    KS -->|Enabled| G
+    SNOW --> WH --> PII --> QUEUE --> KS
+    KS -->|Enabled| GRAPH
     KS -->|Disabled| HALT["⛔ HALTED"]
-    G --> S --> SH --> R --> A --> CONF
+    GRAPH --> CONF
     CONF -->|High| AUTO
     CONF -->|Low| HUMAN
     AUTO --> TEAMS
     HUMAN --> TEAMS
     
     style INPUT fill:#2196f3,stroke:#1976d2,color:#fff
-    style CREW fill:#4caf50,stroke:#388e3c,color:#fff
+    style WORKER fill:#4caf50,stroke:#388e3c,color:#fff
     style OUTPUT fill:#9c27b0,stroke:#7b1fa2,color:#fff
     style HALT fill:#f44336,stroke:#d32f2f,color:#fff
 ```
@@ -247,11 +214,11 @@ flowchart TB
 flowchart TB
     subgraph CONTROLS["🔒 Governance Controls"]
         KS["🛑 Kill Switch<br/>(Redis)"]
-        MODE["🎚️ Operating Mode<br/>auto | assist | monitor"]
+        MODE["🎚️ Operating Mode<br/>auto | assist | observe"]
         THRESH["📊 Confidence<br/>Thresholds"]
     end
     
-    subgraph CHECK["⚖️ ARBITER Checks"]
+    subgraph CHECK["⚖️ Governance Checks"]
         C1["Kill switch active?"]
         C2["Confidence ≥ threshold?"]
         C3["Risk level acceptable?"]
@@ -282,8 +249,8 @@ flowchart TB
 
 | Setting | Redis Key | Default | Description |
 |---------|-----------|---------|-------------|
-| Kill Switch | `gov:killswitch` | `true` | `true`=enabled, `false`=all AI stopped |
-| Mode | `gov:mode` | `assist` | `auto`, `assist`, `monitor` |
+| Kill Switch | `gov:killswitch` | `false` | `false`=enabled, `true`=all AI stopped |
+| Mode | `gov:mode` | `assist` | `auto`, `assist`, `observe` |
 | Auto-assign | `gov:threshold:auto_assign` | `85` | Min confidence % |
 | Auto-categorize | `gov:threshold:auto_categorize` | `80` | Min confidence % |
 | Auto-remediate | `gov:threshold:auto_remediate` | `95` | Min confidence % |
@@ -299,7 +266,8 @@ graph TB
     subgraph DOCKER["🐳 Docker Network: aegis-network"]
         subgraph CORE["Core Services"]
             API["aegis-api<br/>:8000"]
-            LFLOW["langflow<br/>:7860"]
+            WORKER["aegis-worker<br/>x2"]
+            ADMIN["admin-portal<br/>:3000"]
         end
         
         subgraph AI["AI Services"]
@@ -315,7 +283,8 @@ graph TB
     
     API --> RAG --> CHROMA
     API --> REDIS
-    LFLOW --> API
+    WORKER --> REDIS
+    ADMIN --> API
     
     style DOCKER fill:#0db7ed,stroke:#0a89af,color:#fff
     style CORE fill:#EA4B71,stroke:#c23a5a,color:#fff
@@ -338,7 +307,7 @@ graph TB
                 
                 subgraph CONTAINERS["Docker"]
                     API["AEGIS API"]
-                    LF["LangFlow"]
+                    WORKER["Workers x2"]
                     RAG["RAG"]
                     CH["ChromaDB"]
                     RD["Redis"]
@@ -361,4 +330,4 @@ graph TB
 
 ---
 
-*Document Version: 2.0.0 | Last Updated: January 30, 2026*
+*Document Version: 2.1.0 | Last Updated: February 3, 2026*

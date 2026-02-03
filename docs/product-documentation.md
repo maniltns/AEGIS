@@ -1,8 +1,8 @@
 # 🛡️ AEGIS Product Documentation
 
 **Product:** AEGIS - Autonomous Expert for Governance, Intelligence & Swarming  
-**Version:** 1.1  
-**Date:** January 28, 2026  
+**Version:** 2.1  
+**Date:** February 3, 2026  
 **Client:** Accor Hotels  
 
 ---
@@ -69,27 +69,21 @@ mindmap
 
 ## 2. Key Features
 
-### 2.1 Multi-Agent AI Swarm
+### 2.1 LangGraph Pipeline
 
-AEGIS operates as a collaborative AI swarm with 9 specialized agents:
+AEGIS v2.1 operates as a streamlined 4-node LangGraph state machine:
 
 ```mermaid
 graph TB
-    subgraph "🛡️ AEGIS Agent Swarm"
-        GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
-        SCOUT["🔍 SCOUT<br/>Enrichment"]
-        SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
-        ROUTER["🚦 ROUTER<br/>Assignment"]
-        ARBITER["⚖️ ARBITER<br/>Governance"]
-        HERALD["📢 HERALD<br/>Notification"]
-        SCRIBE["📝 SCRIBE<br/>Audit"]
-        BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
-        JANITOR["🧹 JANITOR<br/>Remediation"]
+    subgraph "🛡️ AEGIS LangGraph Pipeline"
+        N1["🛡️ GUARDRAILS<br/>PII Scrub + Dedup"]
+        N2["🔍 ENRICHMENT<br/>KB + User + CI"]
+        N3["🧠 TRIAGE LLM<br/>Single LLM Call"]
+        N4["⚡ EXECUTOR<br/>SNOW + Teams"]
     end
     
-    GUARDIAN --> SCOUT --> SHERLOCK --> ROUTER --> ARBITER
-    ARBITER --> HERALD --> SCRIBE
-    SHERLOCK -->|Auto-Fix| JANITOR --> ARBITER
+    N1 -->|Pass| N2 --> N3 --> N4
+    N1 -->|Duplicate| AUDIT["📊 Audit Log"]
 ```
 
 ### 2.2 Glass Box Principles
@@ -500,6 +494,20 @@ docker exec aegis-redis redis-cli GET gov:killswitch
 **Changed:**
 - Redis ports bound to localhost only
 - Enhanced audit logging
+
+### Version 2.1.0 (February 3, 2026)
+
+**Added - LangGraph Architecture:**
+- LangGraph 4-node pipeline (replaced 7-agent swarm)
+- PII Scrubbing (Microsoft Presidio)
+- Vector similarity for duplicate detection
+- Redis queue for reliable processing
+- Admin Portal (React)
+
+**Changed:**
+- Single LLM call per ticket (vs 7)
+- 2-5s latency (vs 15-35s)
+- 86% cost reduction
 
 ### Version 1.0.0 (January 26, 2026)
 

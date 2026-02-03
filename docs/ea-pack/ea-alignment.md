@@ -100,7 +100,7 @@ graph LR
     end
 
     subgraph "AEGIS Platform"
-        CREW["👥 CrewAI"]
+        LGRAPH["🔄 LangGraph"]
         RAG["🧠 RAG Service"]
         REDIS["📦 Redis"]
     end
@@ -111,14 +111,14 @@ graph LR
         SSM["🔧 AWS SSM"]
     end
 
-    SNOW -->|API| CREW
-    TEAMS -->|Webhook| CREW
-    AAD -->|OAuth| CREW
-    CREW --> RAG
-    CREW --> REDIS
-    CREW -->|Selenium| ARS
-    CREW -->|OHIP| OPERA
-    CREW -->|API| SSM
+    SNOW -->|API| LGRAPH
+    TEAMS -->|Webhook| LGRAPH
+    AAD -->|OAuth| LGRAPH
+    LGRAPH --> RAG
+    LGRAPH --> REDIS
+    LGRAPH -->|Selenium| ARS
+    LGRAPH -->|OHIP| OPERA
+    LGRAPH -->|API| SSM
 ```
 
 ### Integration Patterns
@@ -227,12 +227,12 @@ graph LR
 
 ## 7. Architecture Decision Records (ADRs)
 
-### ADR-001: CrewAI + LangFlow for Orchestration
+### ADR-001: LangGraph for Pipeline Orchestration
 
-- **Decision:** Use CrewAI for agent orchestration with LangFlow visual pipelines
-- **Rationale:** Open source (MIT), AI-native agents, visual design
-- **Alternatives:** Python scripts, AWS Step Functions, UiPath Agentic
-- **Consequences:** Python-based agent code, self-hosted stack
+- **Decision:** Use LangGraph for 4-node pipeline orchestration
+- **Rationale:** Efficient state machine, single LLM call, deterministic flow
+- **Alternatives:** CrewAI (7 agents), Python scripts, AWS Step Functions
+- **Consequences:** Python-based pipeline, faster execution, lower cost
 
 ### ADR-002: Redis over Database
 
