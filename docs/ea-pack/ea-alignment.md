@@ -77,8 +77,8 @@
 
 | Component | Technology | Purpose |
 |-----------|-----------|---------|
-| CrewAI | Agent Framework | 9-agent orchestration |
-| LangFlow | Visual Builder | Pipeline design |
+| LangGraph | Pipeline Framework | 4-node state machine |
+| Presidio | PII Scrubber | Data protection |
 | Redis | In-Memory Store | State, deduplication |
 | ChromaDB | Vector DB | RAG embeddings |
 | FastAPI | API Server | RAG service |

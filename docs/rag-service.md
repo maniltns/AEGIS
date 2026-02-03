@@ -183,14 +183,14 @@ Health check endpoint.
 
 ---
 
-## CrewAI Integration
+## LangGraph Integration
 
 ### Tool Configuration
 
-The RAG service is accessed via CrewAI tools in `agents/tools/rag_tools.py`:
+The RAG service is accessed via async functions in `agents/tools/rag_tools.py`:
 
-| Tool | Endpoint | Purpose |
-|------|----------|---------|
+| Function | Endpoint | Purpose |
+|----------|----------|---------|
 | `search_similar_incidents` | `/search` | Vector similarity search |
 | `analyze_incident` | `/analyze` | Full RAG analysis |
 | `get_resolution_recommendations` | `/recommend` | Resolution suggestions |

@@ -31,9 +31,10 @@ Thank you for your interest in contributing to AEGIS! This document provides gui
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.11+ (for agent development)
+- Python 3.11+
+- spaCy en_core_web_lg model
 - Access to ServiceNow Dev instance
-- Azure AD credentials (for Kill Switch testing)
+- Azure AD credentials (for admin portal)
 
 ### Local Setup
 
@@ -44,14 +45,17 @@ cd aegis
 
 # Setup environment
 cp .env.example .env
-cp docker/security-config.env.example docker/security-config.env
+
+# Install dependencies
+pip install -r requirements.txt
+python -m spacy download en_core_web_lg
 
 # Start services
 cd docker && docker-compose up -d
 
 # Verify
 docker ps
-# Should show: aegis-redis, aegis-api, langflow
+# Should show: aegis-api, aegis-worker, redis, admin-portal
 ```
 
 ---
@@ -83,7 +87,7 @@ main
 
 | Type | Pattern | Example |
 |------|---------|---------|
-| Feature | `feature/AEGIS-{id}-{description}` | `feature/AEGIS-42-kill-switch-2fa` |
+| Feature | `feature/AEGIS-{id}-{description}` | `feature/AEGIS-42-vector-dedup` |
 | Bug Fix | `bugfix/AEGIS-{id}-{description}` | `bugfix/AEGIS-99-redis-timeout` |
 | Hotfix | `hotfix/AEGIS-{id}-{description}` | `hotfix/AEGIS-100-security-patch` |
 
@@ -141,35 +145,53 @@ Closes AEGIS-{id}
 
 ## Coding Standards
 
-### Workflow JSON Files
+### Python (LangGraph Pipeline)
 
-- Use descriptive node names with emoji prefixes (e.g., `📝 SCRIBE - Log Event`)
-- Include workflow tags for categorization
-- Add comments in Code nodes explaining complex logic
-- Use environment variables for all secrets
+```python
+"""
+Example LangGraph node structure.
+Use type hints and docstrings.
+"""
+from typing import Dict, Any
+from agents.triage_graph import TriageState
 
-### Python (CrewAI Agent Code)
+async def example_node(state: TriageState) -> TriageState:
+    """
+    Brief description of node function.
+    
+    Args:
+        state: Current pipeline state
+        
+    Returns:
+        Updated state with new data
+    """
+    # 1. Extract inputs
+    incident = state.get("incident", {})
+    
+    # 2. Process
+    result = await process_logic(incident)
+    
+    # 3. Return updated state
+    return {
+        **state,
+        "result": result,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+```
 
-```javascript
-/**
- * Example code node structure
- * Always include JSDoc comments
- */
+### Async Tool Functions
 
-// 1. Extract inputs
-const input = $json.field || 'default';
-
-// 2. Process
-const result = processLogic(input);
-
-// 3. Return structured output
-return {
-  json: {
-    success: true,
-    result: result,
-    timestamp: new Date().toISOString()
-  }
-};
+```python
+async def example_tool(param: str) -> Optional[Dict[str, Any]]:
+    """
+    Tool functions should be async and return typed results.
+    """
+    try:
+        result = await external_call(param)
+        return result
+    except Exception as e:
+        logger.error(f"Tool failed: {e}")
+        return None
 ```
 
 ### Documentation
@@ -183,12 +205,12 @@ return {
 
 ## Testing Requirements
 
-### Workflow Testing
+### Test Types
 
 | Test Type | When | How |
 |-----------|------|-----|
-| Unit | Every change | Test individual nodes |
-| Integration | Before merge | End-to-end workflow |
+| Unit | Every change | pytest for individual functions |
+| Integration | Before merge | End-to-end pipeline test |
 | Security | Any auth change | Verify role checks |
 
 ### Test Cases to Include
@@ -198,7 +220,8 @@ return {
 |----|----------|----------|--------|
 | T01 | Happy path | Success | ☐ |
 | T02 | Invalid input | Graceful error | ☐ |
-| T03 | Auth failure | Access denied | ☐ |
+| T03 | PII scrubbing | Data anonymized | ☐ |
+| T04 | Duplicate detection | Blocked | ☐ |
 ```
 
 ### Security Testing
@@ -236,11 +259,11 @@ footer (optional)
 ### Examples
 
 ```
-feat(janitor): add Azure AD verification to Kill Switch
+feat(triage): add vector similarity to Storm Shield
 
-- Integrate with Microsoft Graph API
-- Add PIN challenge workflow
-- Log all authorization attempts
+- Replace hash-based dedup with RAG vector search
+- Add 90% similarity threshold
+- Include 15-minute time window
 
 Closes AEGIS-42
 ```

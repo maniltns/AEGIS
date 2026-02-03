@@ -1,10 +1,10 @@
-# AEGIS Agents Package
-"""AEGIS CrewAI Agent Orchestration"""
+# AEGIS Agents Package - v2.1
+"""AEGIS LangGraph Triage Pipeline"""
 
-from .crew import AEGISAgents, AEGISCrew, process_incident
+from .triage_graph import process_incident, build_triage_graph, TriageState
 
 __all__ = [
-    "AEGISAgents",
-    "AEGISCrew",
-    "process_incident"
+    "process_incident",
+    "build_triage_graph",
+    "TriageState"
 ]

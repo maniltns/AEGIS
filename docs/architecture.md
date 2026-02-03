@@ -2,204 +2,184 @@
 
 **Project:** AEGIS - Autonomous IT Operations & Swarming Platform  
 **Client:** Accor Hotels  
-**Stack:** CrewAI + LangFlow
+**Stack:** LangGraph + FastAPI v2.1
 
-## System Context Diagram (Mermaid)
+## System Context Diagram
 
 ```mermaid
 graph TB
     subgraph "🌐 External Systems"
         SNOW["📋 ServiceNow<br/>ITSM"]
         TEAMS["💬 MS Teams<br/>Collaboration"]
-        OPENAI["🧠 OpenAI/Claude<br/>AI"]
+        LLM["🧠 Claude/GPT-4o<br/>AI"]
         ARS["🔐 ARS Portal<br/>Identity"]
-        OPERA["🏨 PMS Opera<br/>Hotels"]
     end
 
     subgraph "🛡️ AEGIS Core"
-        CREW["👥 CrewAI<br/>9 Agents"]
-        API["⚡ FastAPI<br/>Webhooks"]
-        LF["🎨 LangFlow<br/>Pipelines"]
-        REDIS["📦 Redis<br/>State"]
+        API["⚡ FastAPI<br/>API Server"]
+        QUEUE["📦 Redis<br/>Queue"]
+        WORKER["👷 Worker<br/>LangGraph"]
+        RAG["🔍 RAG<br/>Service"]
+        ADMIN["🖥️ Admin<br/>Portal"]
     end
 
     SNOW <--> API
     TEAMS <--> API
-    API --> CREW
-    CREW --> OPENAI
-    CREW --> ARS
-    CREW --> OPERA
-    CREW <--> REDIS
-    LF --> CREW
+    API --> QUEUE
+    QUEUE --> WORKER
+    WORKER --> LLM
+    WORKER --> RAG
+    WORKER --> ARS
+    ADMIN --> API
 ```
 
 ---
 
-## Layered Architecture (Mermaid)
+## Layered Architecture
 
 ```mermaid
 graph TB
-    subgraph "Layer 6: Presentation"
-        UI_TEAMS["💬 MS Teams<br/>Adaptive Cards"]
-        UI_SNOW["📋 ServiceNow Portal"]
-        UI_INSIGHT["📊 RedisInsight"]
-        UI_LF["🎨 LangFlow UI"]
+    subgraph "Layer 5: LLM Inference"
+        LLM_CLAUDE["🧠 Claude 3.5"]
+        LLM_GPT["🧠 GPT-4o"]
+        LLM_TITAN["📊 AWS Titan"]
     end
 
-    subgraph "Layer 5: API Gateway"
-        API_WEBHOOK["🔗 Webhooks"]
-        API_GRAPH["🔐 MS Graph API"]
-        API_SNOW["📡 ServiceNow REST"]
-        API_OPENAI["🧠 OpenAI API"]
+    subgraph "Layer 4: AI Pipeline"
+        GRAPH["🔄 LangGraph<br/>4-Node Pipeline"]
+        RAG["🔍 RAG Service<br/>Vector Search"]
+        PII["🔒 Presidio<br/>PII Scrubber"]
     end
 
-    subgraph "Layer 4: Application Services"
-        SVC_API["⚡ FastAPI Server"]
-        SVC_AGENT["👥 CrewAI Agents"]
-        SVC_NOTIFY["📢 HERALD"]
-        SVC_APPROVE["✅ Approval Service"]
+    subgraph "Layer 3: Queue & Governance"
+        REDIS_Q["📦 Redis Queue"]
+        REDIS_GOV["⚖️ Governance State"]
+        REDIS_CACHE["💾 Result Cache"]
     end
 
-    subgraph "Layer 3: Business Logic"
-        BIZ_TRIAGE["🕵️ SHERLOCK"]
-        BIZ_ROUTE["🚦 ROUTER"]
-        BIZ_REMED["🧹 JANITOR"]
-        BIZ_GOV["⚖️ ARBITER"]
-        BIZ_STORM["🛡️ GUARDIAN"]
+    subgraph "Layer 2: API & Admin"
+        API["⚡ FastAPI Server"]
+        ADMIN["🖥️ Admin Portal"]
+        WORKER["👷 Triage Worker"]
     end
 
-    subgraph "Layer 2: Data Access"
-        DAL_SNOW["📋 ServiceNow Client"]
-        DAL_REDIS["📦 Redis Client"]
-        DAL_LLM["🧠 LLM Client"]
-        DAL_TEAMS["💬 Teams Client"]
+    subgraph "Layer 1: Integration"
+        SNOW["📋 ServiceNow"]
+        TEAMS["💬 MS Teams"]
+        SSM["🔧 AWS SSM"]
     end
 
-    subgraph "Layer 1: Infrastructure"
-        INFRA_AWS["☁️ AWS EC2"]
-        INFRA_REDIS["📦 Redis Stack"]
-        INFRA_NET["🔒 VPC Network"]
-        INFRA_SSL["🔐 TLS 1.3"]
-    end
-
-    UI_TEAMS --> API_WEBHOOK
-    UI_SNOW --> API_SNOW
-    API_WEBHOOK --> SVC_API
-    SVC_API --> SVC_AGENT
-    SVC_AGENT --> BIZ_TRIAGE
-    BIZ_TRIAGE --> DAL_LLM
-    BIZ_STORM --> DAL_REDIS
-    DAL_REDIS --> INFRA_REDIS
+    API --> REDIS_Q
+    REDIS_Q --> WORKER
+    WORKER --> GRAPH
+    GRAPH --> RAG
+    GRAPH --> PII
+    GRAPH --> LLM_CLAUDE
+    GRAPH --> SNOW
+    GRAPH --> TEAMS
 ```
 
 ---
 
-## Agent Architecture
+## LangGraph Pipeline Architecture
 
-### Multi-Agent Swarm (Mermaid)
+### 4-Node Triage Pipeline
 
 ```mermaid
-graph TB
-    subgraph "🛡️ AEGIS Agent Swarm"
-        GUARDIAN["🛡️ GUARDIAN<br/>Storm Shield"]
-        SCOUT["🔍 SCOUT<br/>Enrichment"]
-        SHERLOCK["🕵️ SHERLOCK<br/>AI Triage"]
-        ROUTER["🚦 ROUTER<br/>Assignment"]
-        ARBITER["⚖️ ARBITER<br/>Governance"]
-        HERALD["📢 HERALD<br/>Notification"]
-        SCRIBE["📝 SCRIBE<br/>Audit"]
-        BRIDGE["🌉 BRIDGE<br/>Case→Incident"]
-        JANITOR["🧹 JANITOR<br/>Remediation"]
+flowchart LR
+    subgraph "📥 Ingest"
+        API["API Server"]
+        SCRUB["PII Scrub"]
+        QUEUE["Redis Queue"]
     end
-    
-    GUARDIAN --> SCOUT
-    SCOUT --> SHERLOCK
-    SHERLOCK --> ROUTER
-    SHERLOCK -->|Auto-Fix| JANITOR
-    ROUTER --> ARBITER
-    JANITOR --> ARBITER
-    ARBITER -->|Approved| HERALD
-    ARBITER -->|Blocked| SCRIBE
-    HERALD --> SCRIBE
+
+    subgraph "⚙️ LangGraph Pipeline"
+        N1["🛡️ Guardrails<br/>Dedup + Safety"]
+        N2["🔍 Enrichment<br/>KB + User + CI"]
+        N3["🧠 Triage LLM<br/>1 Call Only"]
+        N4["⚡ Executor<br/>SNOW + Teams"]
+    end
+
+    subgraph "📤 Output"
+        SNOW["ServiceNow Update"]
+        TEAMS["Teams Card"]
+        SSM["Auto-Heal"]
+        AUDIT["Audit Log"]
+    end
+
+    API --> SCRUB --> QUEUE
+    QUEUE --> N1
+    N1 -->|Pass| N2
+    N1 -->|Dup| AUDIT
+    N2 --> N3
+    N3 --> N4
+    N4 --> SNOW
+    N4 --> TEAMS
+    N4 -->|High Conf| SSM
+    N4 --> AUDIT
 ```
 
-### Agent Roles
+### Pipeline Nodes
 
-| Agent | Icon | Responsibility | Trigger |
-|-------|------|----------------|---------|
-| **GUARDIAN** | 🛡️ | Storm Shield - Blocks duplicates | Every new ticket |
-| **SCOUT** | 🔍 | Context enrichment (caller, history) | After GUARDIAN pass |
-| **SHERLOCK** | 🕵️ | AI reasoning, RCA, KB search | After SCOUT |
-| **ROUTER** | 🚦 | Assignment group selection | After SHERLOCK |
-| **ARBITER** | ⚖️ | Governance check (kill switch, mode) | Before any write |
-| **HERALD** | 📢 | Teams notifications | After ARBITER approval |
-| **SCRIBE** | 📝 | Audit logging | All decisions |
-| **BRIDGE** | 🌉 | Case → Incident conversion | L1 case flagged |
-| **JANITOR** | 🧹 | Auto-remediation | High confidence + approval |
+| Node | Function | Duration |
+|------|----------|----------|
+| **Guardrails** | PII scrub (Presidio) + Vector dedup (90% similarity) | ~200ms |
+| **Enrichment** | KB search + User info + CI details | ~500ms |
+| **Triage LLM** | Single LLM call: classify + route + action | ~2-3s |
+| **Executor** | Update SNOW + Teams + optional auto-heal | ~500ms |
+
+**Total:** 2-5 seconds per ticket (vs 15-35s with 7-agent swarm)
 
 ---
 
-## Deployment Architecture (Mermaid)
+## Deployment Architecture
 
 ### Security Zones
 
 ```mermaid
 graph TB
-    subgraph "🌐 Internet / External"
+    subgraph "🌐 Internet"
         USER["👤 End Users"]
         TEAMS_EXT["💬 MS Teams"]
         SNOW_EXT["📋 ServiceNow"]
-        OPENAI_EXT["🧠 OpenAI API"]
+        LLM_EXT["🧠 LLM API"]
     end
 
     subgraph DMZ["⚠️ DMZ Zone"]
         ALB["AWS ALB<br/>+ WAF"]
-        WEBHOOK["Webhook Endpoint"]
     end
 
     subgraph TRUSTED["🔒 Trusted Zone"]
-        subgraph DOCKER["🐳 Docker Host"]
+        subgraph DOCKER["🐳 Docker Compose"]
             API["FastAPI :8000"]
-            LF["LangFlow :7860"]
+            ADMIN["Admin Portal :3000"]
+            WORKER["Triage Worker x2"]
             REDIS["Redis :6379"]
-            INSIGHT["RedisInsight :8001"]
+            RAG["RAG Service :8100"]
         end
-        LAMBDA["⚡ Lambda"]
     end
 
     subgraph BACKEND["🔐 Backend Zone"]
         SSM["AWS SSM"]
         SECRETS["Secrets Manager"]
-        KMS["AWS KMS"]
-    end
-
-    subgraph TARGETS["🖥️ Target Systems"]
-        WIN["Windows Servers"]
-        LINUX["Linux Servers"]
-        ARS["ARS Portal"]
-        OPERA["PMS Opera"]
     end
 
     USER --> TEAMS_EXT
     TEAMS_EXT --> ALB
     SNOW_EXT --> ALB
-    ALB --> WEBHOOK
-    WEBHOOK --> API
+    ALB --> API
+    ALB --> ADMIN
     API --> REDIS
-    API --> LAMBDA
-    LAMBDA --> SSM
-    SSM --> WIN
-    SSM --> LINUX
-    API --> OPENAI_EXT
-    API --> ARS
-    API --> OPERA
+    REDIS --> WORKER
+    WORKER --> LLM_EXT
+    WORKER --> RAG
+    WORKER --> SSM
     SECRETS --> API
-    KMS --> SECRETS
 ```
 
 ---
 
-## Data Flow (Mermaid)
+## Data Flow
 
 ### Incident Triage Flow
 
@@ -208,14 +188,13 @@ flowchart LR
     subgraph INPUT["📥 Sources"]
         INC["Incidents"]
         CASE["Cases"]
-        RITM["RITMs"]
     end
 
-    subgraph PROCESS["⚙️ Pipeline"]
-        STORM["🛡️ Storm Shield"]
+    subgraph PIPELINE["⚙️ LangGraph"]
+        PII["🔒 PII Scrub"]
+        DEDUP["🛡️ Vector Dedup"]
         ENRICH["🔍 Enrichment"]
-        PII["🔒 PII Scrubber"]
-        AI["🧠 AI Triage"]
+        LLM["🧠 Triage LLM"]
         GOV["⚖️ Governance"]
     end
 
@@ -223,36 +202,37 @@ flowchart LR
         UPDATE["📝 Ticket Update"]
         NOTIFY["📢 Teams Notify"]
         AUDIT["📊 Audit Log"]
-        EXEC["🔧 Remediation"]
+        EXEC["🔧 Auto-Heal"]
     end
 
-    INC --> STORM
-    CASE --> STORM
-    RITM --> STORM
-    STORM -->|Pass| ENRICH
-    STORM -->|Block| AUDIT
-    ENRICH --> PII
-    PII --> AI
-    AI --> GOV
+    INC --> PII
+    CASE --> PII
+    PII --> DEDUP
+    DEDUP -->|Pass| ENRICH
+    DEDUP -->|Dup| AUDIT
+    ENRICH --> LLM
+    LLM --> GOV
     GOV -->|Approved| UPDATE
     GOV -->|Approved| NOTIFY
-    GOV -->|Observe| AUDIT
-    GOV -->|Auto-Fix| EXEC
+    GOV -->|High Conf| EXEC
+    GOV --> AUDIT
 ```
 
 ---
-
 
 ## Redis Schema
 
 | Key Pattern | Type | TTL | Purpose |
 |-------------|------|-----|---------|
-| `storm:{hash}` | Counter | 900s | Deduplication |
-| `gov:killswitch` | Boolean | — | Emergency stop |
-| `gov:mode` | String | — | assist/observe/execute |
-| `gov:killswitch:*` | Hash | — | Activation metadata |
-| `killswitch:pending:*` | JSON | 300s | PIN verification |
-| `audit:{inc}` | List | 604800s | Decision log |
+| `aegis:queue:triage` | List | — | Incident queue |
+| `aegis:queue:processing` | List | — | Currently processing |
+| `aegis:queue:dead_letter` | List | — | Failed items |
+| `gov:killswitch` | String | — | Emergency stop |
+| `gov:mode` | String | — | assist/observe/auto |
+| `gov:threshold:*` | String | — | Confidence thresholds |
+| `triage:result:{id}` | JSON | 24h | Triage results |
+| `logs:activity` | List | — | Activity log (last 1000) |
+| `stats:daily` | Hash | — | Daily processing stats |
 
 ---
 
@@ -262,9 +242,21 @@ flowchart LR
 |-------|---------|------------|
 | Network | Encryption | TLS 1.3 |
 | Network | WAF | AWS WAF |
-| Identity | SSO | Azure AD |
-| Identity | MFA | Conditional Access |
+| Data | PII Protection | Microsoft Presidio |
 | Data | Encryption at Rest | AWS EBS, Redis AOF |
-| Data | PII Protection | PII scrubber agent |
-| Access | RBAC | Azure AD Groups |
-| Audit | Logging | ServiceNow u_ai_audit_log |
+| Identity | Admin Auth | Username/Password |
+| Queue | Reliability | Redis BRPOPLPUSH |
+| AI | Cost Control | 1 LLM call per ticket |
+| Audit | Logging | Redis + ServiceNow |
+
+---
+
+## Performance Comparison
+
+| Metric | v2.0 (CrewAI) | v2.1 (LangGraph) |
+|--------|---------------|------------------|
+| LLM Calls/Ticket | 7 | 1 |
+| Latency | 15-35s | 2-5s |
+| Monthly Cost (15k) | ~$5,000 | ~$700 |
+| Queue Reliability | Low | High |
+| PII Protection | None | Presidio |

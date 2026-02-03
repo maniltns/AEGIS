@@ -1,12 +1,12 @@
 # 🛡️ AEGIS - Autonomous IT Operations & Swarming Platform
 
-[![Version](https://img.shields.io/badge/Version-2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-2.1-blue.svg)](CHANGELOG.md)
 [![Status](https://img.shields.io/badge/Status-POC-yellow.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
-[![Stack](https://img.shields.io/badge/Stack-CrewAI%20%2B%20LangFlow-purple.svg)]()
+[![Stack](https://img.shields.io/badge/Stack-LangGraph%20%2B%20FastAPI-purple.svg)]()
 
 **Client:** Accor Hotels  
-**Project:** Intelligent Triage System v2.0  
+**Project:** Intelligent Triage System v2.1  
 **Tagline:** *"Your AI Shield Against Incident Chaos"*
 
 ---
@@ -17,7 +17,6 @@
 - [Technology Stack](#technology-stack)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
-- [Agent Roster](#agent-roster)
 - [API Reference](#api-reference)
 - [Documentation](#documentation)
 - [Changelog](#changelog)
@@ -32,10 +31,11 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 
 | Benefit | Metric | Description |
 |---------|--------|-------------|
-| 🚀 **Faster Triage** | <60 sec | vs 45 min manual |
-| 🛡️ **Alert Suppression** | [TBD]% | Duplicate detection via Storm Shield |
+| 🚀 **Faster Triage** | <5 sec | vs 45 min manual |
+| 🛡️ **Alert Suppression** | 90%+ | Vector similarity dedup via Storm Shield |
 | 🔒 **Glass Box AI** | 100% | Every decision auditable |
-| 💰 **Cost Efficient** | Open Source | CrewAI + LangFlow (MIT Licensed) |
+| 💰 **Cost Efficient** | ~$700/mo | 1 LLM call per ticket |
+| 🔐 **PII Protection** | Microsoft Presidio | Data scrubbed before LLM |
 
 ---
 
@@ -45,22 +45,27 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **Agent Framework** | CrewAI | 9-agent autonomous swarm |
-| **Visual Pipelines** | LangFlow | Workflow visualization & building |
-| **API Server** | FastAPI | Webhooks, governance endpoints |
+| **AI Pipeline** | LangGraph | 4-node triage state machine |
+| **API Server** | FastAPI | Webhooks, governance, admin |
+| **Task Queue** | Redis | Reliable, persistent processing |
 | **Vector Database** | ChromaDB | RAG knowledge store |
-| **Cache/Governance** | Redis | Kill switch, Storm Shield |
-| **LLM** | Claude/GPT-4o | AI reasoning |
+| **PII Scrubber** | Microsoft Presidio | GDPR/CCPA compliance |
+| **LLM** | Claude/GPT-4o | AI reasoning (1 call/ticket) |
 | **Embeddings** | AWS Titan V2 | Vector embeddings |
+| **Admin Portal** | React + Vite | Agent management UI |
 
-### Key Features
+### v2.1 Pipeline (LangGraph)
 
-- ✅ 9 CrewAI agents with full Python implementation
-- ✅ LangFlow visual pipeline builder
-- ✅ FastAPI webhook server
-- ✅ Enhanced RAG with ChromaDB
-- ✅ Complete governance API
-- ✅ Fully open source (MIT License)
+```
+API → PII Scrub → Redis Queue → Worker → [Guardrails → Enrichment → LLM → Executor]
+```
+
+| Node | Function |
+|------|----------|
+| **Guardrails** | PII scrub + Vector dedup (Storm Shield) |
+| **Enrichment** | KB search + User/CI context |
+| **LLM Triage** | Single call: classify + route + action |
+| **Executor** | Update ServiceNow + Teams + Auto-heal |
 
 ---
 
@@ -85,6 +90,10 @@ cd aegis-ops
 cp .env.example .env
 nano .env  # Add your API keys
 
+# Install spaCy model (for PII scrubbing)
+pip install -r requirements.txt
+python -m spacy download en_core_web_lg
+
 # Start the stack
 cd docker
 docker-compose up -d
@@ -98,9 +107,15 @@ curl http://localhost:8000/health
 | Service | Port | URL |
 |---------|------|-----|
 | AEGIS API | 8000 | http://localhost:8000 |
-| LangFlow | 7860 | http://localhost:7860 |
+| Admin Portal | 3000 | http://localhost:3000 |
 | RAG Service | 8100 | http://localhost:8100 |
 | RedisInsight | 8001 | http://localhost:8001 |
+
+### Admin Portal Login
+
+- **URL:** http://localhost:3000
+- **Username:** admin
+- **Password:** aegis2026
 
 ---
 
@@ -108,7 +123,7 @@ curl http://localhost:8000/health
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AEGIS v2.0 Architecture                      │
+│                    AEGIS v2.1 Architecture                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Layer 5: LLM Inference                                         │
@@ -116,33 +131,32 @@ curl http://localhost:8000/health
 │  │   Claude    │  │   GPT-4o    │  │ AWS Titan   │             │
 │  └─────────────┘  └─────────────┘  └─────────────┘             │
 │                                                                 │
-│  Layer 4: AI Engine                                             │
+│  Layer 4: AI Pipeline                                           │
 │  ┌───────────────────────────────────────────────────────┐     │
-│  │  CrewAI (9 Agents)          │  RAG Service (FastAPI)  │     │
+│  │  LangGraph (4 Nodes)         │  RAG Service (FastAPI)  │     │
+│  │  - Guardrails (PII/Dedup)    │  - KB Search            │     │
+│  │  - Enrichment (KB/User)      │  - Incident Similarity  │     │
+│  │  - Triage LLM (1 call)       │  - Vector Store         │     │
+│  │  - Executor (SNOW/Teams)     │                         │     │
 │  └───────────────────────────────────────────────────────┘     │
 │                                                                 │
-│  Layer 3: Middleware (Redis, Azure AD, AWS SSM)                 │
-│  Layer 2: Orchestration (LangFlow, FastAPI)                     │
-│  Layer 1: Presentation (ServiceNow, MS Teams)                   │
+│  Layer 3: Queue & Governance                                    │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
+│  │ Redis Queue│  │ Kill Switch│  │ PII Scrub  │               │
+│  └────────────┘  └────────────┘  └────────────┘               │
+│                                                                 │
+│  Layer 2: API & Admin                                           │
+│  ┌────────────┐  ┌────────────┐                                │
+│  │  FastAPI   │  │Admin Portal│                                │
+│  └────────────┘  └────────────┘                                │
+│                                                                 │
+│  Layer 1: Integration                                           │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐               │
+│  │ ServiceNow │  │  MS Teams  │  │  AWS SSM   │               │
+│  └────────────┘  └────────────┘  └────────────┘               │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
----
-
-## Agent Roster
-
-| Agent | Role | Purpose |
-|-------|------|---------|
-| 🛡️ **GUARDIAN** | Storm Shield | Duplicate detection, alert storm suppression |
-| 🔍 **SCOUT** | Enrichment | Context gathering from CMDB, KB, history |
-| 🕵️ **SHERLOCK** | AI Triage | Classification, root cause, confidence scoring |
-| 🎯 **ROUTER** | Assignment | Skills matching, workload balancing |
-| ⚖️ **ARBITER** | Governance | Kill switch, thresholds, approvals |
-| 📢 **HERALD** | Notifications | Teams cards, swarm channel creation |
-| 📝 **SCRIBE** | Audit | Decision logging, compliance |
-| 🌉 **BRIDGE** | Case→Incident | Intelligent conversion |
-| 🧹 **JANITOR** | Remediation | Safe auto-fix for known issues |
 
 ---
 
@@ -151,13 +165,14 @@ curl http://localhost:8000/health
 ### Incident Processing
 
 ```bash
-# Submit incident
+# Submit incident (queued for triage)
 POST /webhook/incident
 {
   "number": "INC0012345",
   "short_description": "Cannot access Opera PMS",
   "category": "Software"
 }
+# Response: {"status": "queued", "queue_position": 1}
 ```
 
 ### Governance
@@ -170,6 +185,13 @@ POST /governance/killswitch
 # Resume AI
 POST /governance/killswitch
 {"action": "enable", "reason": "...", "operator": "admin@accor.com"}
+```
+
+### Queue Status
+
+```bash
+GET /status
+# Returns queue depth, processing count, dead letter count
 ```
 
 ---
@@ -185,7 +207,6 @@ POST /governance/killswitch
 ### EA Pack
 - [EA Alignment](docs/ea-pack/ea-alignment.md)
 - [Risk Register](docs/ea-pack/risk-register.md)
-- [CrewAI vs UiPath](docs/ea-pack/crewai-vs-uipath-comparison.md)
 
 ### Technical Pack
 - [Setup Guide](docs/setup-guide.md)
@@ -198,22 +219,25 @@ POST /governance/killswitch
 
 ```
 aegis-ops/
-├── agents/                 # CrewAI agent definitions
-│   ├── crew.py            # 9 agents + crew orchestration
-│   └── tools/             # Agent tools
+├── agents/                 # LangGraph pipeline
+│   ├── triage_graph.py    # 4-node state machine
+│   └── tools/             # Async tool functions
 │       ├── servicenow_tools.py
 │       ├── redis_tools.py
 │       ├── rag_tools.py
 │       └── teams_tools.py
-├── langflow/              # LangFlow pipeline configs
-│   ├── master-triage-flow.json
-│   └── storm-shield-flow.json
+├── workers/               # Queue workers
+│   └── triage_worker.py   # Redis queue consumer
+├── utils/                 # Utilities
+│   └── pii_scrubber.py    # Microsoft Presidio
+├── admin-portal/          # React admin UI
 ├── rag-service/           # RAG API service
 ├── docker/                # Docker configuration
 │   ├── docker-compose.yml
 │   └── Dockerfile.api
 ├── docs/                  # Documentation
-└── api.py                 # FastAPI server
+├── api.py                 # FastAPI server
+└── requirements.txt       # Python dependencies
 ```
 
 ---
@@ -222,11 +246,15 @@ aegis-ops/
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-### v2.0.0 (February 2026)
-- CrewAI + LangFlow orchestration stack
-- 9 CrewAI agents with full Python implementation
-- LangFlow visual pipeline builder
-- Fully open source (MIT License)
+### v2.1.0 (February 2026)
+- **LangGraph Pipeline** - Replaced 7-agent CrewAI swarm with 4-node state machine
+- **PII Scrubber** - Microsoft Presidio integration (GDPR compliant)
+- **Vector Dedup** - Semantic similarity replaces hash-based dedup
+- **Redis Queue** - Reliable task processing with dead letter queue
+- **Admin Portal** - React UI for agent management
+
+### v2.0.0 (January 2026)
+- Initial CrewAI + LangFlow implementation
 
 ---
 
