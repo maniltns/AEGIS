@@ -181,6 +181,46 @@ services:
       - aegis-network
     restart: unless-stopped
 
+  # ===========================================================================
+  # Triage Worker (LangGraph Pipeline)
+  # ===========================================================================
+  aegis-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: aegis-worker
+    command: python workers/triage_worker.py
+    environment:
+      # LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # ServiceNow
+      - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
+      - SERVICENOW_USER=${SERVICENOW_USER}
+      - SERVICENOW_PASSWORD=${SERVICENOW_PASSWORD}
+
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+      # RAG Service
+      - RAG_SERVICE_URL=http://rag-service:8100
+
+      # Teams
+      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
+    depends_on:
+      - redis
+      - rag-service
+    networks:
+      - aegis-network
+    restart: unless-stopped
+    deploy:
+      replicas: 2 # Run 2 workers for parallel processing
+    volumes:
+      - /var/log/aegis:/var/log/aegis
+
 # =============================================================================
 # NETWORKS
 # =============================================================================

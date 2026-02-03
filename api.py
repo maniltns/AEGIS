@@ -1,7 +1,9 @@
-# AEGIS API Server
+# AEGIS API Server - v2.1
 """
 FastAPI server for AEGIS - Autonomous IT Operations Platform
 Endpoints for incident processing, webhooks, and admin operations.
+
+v2.1: Uses Redis queue instead of BackgroundTasks for reliability.
 """
 
 import os
@@ -11,13 +13,13 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Header
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis
 import uvicorn
 
-from agents.crew import AEGISCrew, process_incident
+from utils.pii_scrubber import scrub_dict
 
 # Configure logging
 logging.basicConfig(
@@ -26,13 +28,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger("aegis.api")
 
-# Redis client for governance
+# Redis client for governance and queue
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
     port=int(os.getenv("REDIS_PORT", 6379)),
     password=os.getenv("REDIS_PASSWORD"),
     decode_responses=True
 )
+
+# Queue name
+TRIAGE_QUEUE = "aegis:queue:triage"
 
 
 # =============================================================================
@@ -42,13 +47,17 @@ redis_client = redis.Redis(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    logger.info("🛡️ AEGIS API Server starting...")
+    logger.info("🛡️ AEGIS API Server v2.1 starting...")
     
     # Initialize governance defaults if not set
     if not redis_client.get("gov:killswitch"):
         redis_client.set("gov:killswitch", "true")  # true = system enabled
     if not redis_client.get("gov:mode"):
         redis_client.set("gov:mode", "assist")  # assist = AI + human review
+    
+    # Log queue status
+    queue_len = redis_client.llen(TRIAGE_QUEUE)
+    logger.info(f"📋 Queue status: {queue_len} items pending")
     
     logger.info("✅ AEGIS API Server ready")
     yield
@@ -61,8 +70,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AEGIS API",
-    description="Autonomous IT Operations & Swarming Platform",
-    version="2.0.0",
+    description="Autonomous IT Operations & Swarming Platform (v2.1 - LangGraph)",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -99,6 +108,7 @@ class TriageResponse(BaseModel):
     incident_number: str
     triage_id: str
     message: str
+    queue_position: Optional[int] = None
 
 
 class KillSwitchPayload(BaseModel):
@@ -135,14 +145,17 @@ async def health_check():
     except:
         redis_status = "disconnected"
     
+    queue_len = redis_client.llen(TRIAGE_QUEUE)
+    
     return {
         "status": "healthy",
         "service": "aegis-api",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "timestamp": datetime.utcnow().isoformat(),
         "components": {
             "redis": redis_status,
-            "crewai": "ready"
+            "langgraph": "ready",
+            "queue_depth": queue_len
         }
     }
 
@@ -158,6 +171,11 @@ async def get_status():
     processed_today = redis_client.get(f"stats:processed:{today}") or "0"
     blocked_today = redis_client.get(f"stats:blocked:{today}") or "0"
     
+    # Queue stats
+    queue_len = redis_client.llen(TRIAGE_QUEUE)
+    processing_len = redis_client.llen("aegis:queue:processing")
+    dead_letter_len = redis_client.llen("aegis:queue:dead_letter")
+    
     return {
         "operational": kill_switch == "true",
         "mode": mode,
@@ -166,22 +184,25 @@ async def get_status():
             "processed_today": int(processed_today),
             "blocked_today": int(blocked_today)
         },
+        "queue": {
+            "pending": queue_len,
+            "processing": processing_len,
+            "dead_letter": dead_letter_len
+        },
         "timestamp": datetime.utcnow().isoformat()
     }
 
 
 # =============================================================================
-# INCIDENT PROCESSING ENDPOINTS
+# INCIDENT PROCESSING ENDPOINTS (v2.1 - Redis Queue)
 # =============================================================================
 
 @app.post("/webhook/incident", response_model=TriageResponse)
-async def receive_incident(
-    incident: IncidentPayload,
-    background_tasks: BackgroundTasks
-):
+async def receive_incident(incident: IncidentPayload):
     """
     Receive incident from ServiceNow webhook.
-    Triggers async processing through AEGIS agent crew.
+    PII is scrubbed and incident is pushed to Redis queue.
+    Worker process handles actual triage.
     """
     logger.info(f"Received incident: {incident.number}")
     
@@ -196,46 +217,30 @@ async def receive_incident(
     # Generate triage ID
     triage_id = f"TRG{datetime.utcnow().strftime('%Y%m%d%H%M%S')}{incident.number[-4:]}"
     
-    # Queue for background processing
-    background_tasks.add_task(
-        process_incident_async,
-        incident.model_dump(),
-        triage_id
-    )
+    # Convert to dict and scrub PII before queuing
+    incident_data = incident.model_dump()
+    incident_data["triage_id"] = triage_id
+    incident_data["received_at"] = datetime.utcnow().isoformat()
+    
+    # Scrub PII (creates scrubbed versions of text fields)
+    incident_data = scrub_dict(incident_data)
+    
+    # Push to Redis queue (reliable, persistent)
+    queue_position = redis_client.lpush(TRIAGE_QUEUE, json.dumps(incident_data))
     
     # Increment stats
     today = datetime.utcnow().strftime("%Y%m%d")
     redis_client.incr(f"stats:processed:{today}")
     
+    logger.info(f"Queued {incident.number} at position {queue_position}")
+    
     return TriageResponse(
-        status="accepted",
+        status="queued",
         incident_number=incident.number,
         triage_id=triage_id,
-        message="Incident queued for AI triage"
+        message="Incident queued for AI triage",
+        queue_position=queue_position
     )
-
-
-async def process_incident_async(incident: Dict[str, Any], triage_id: str):
-    """Background task to process incident through CrewAI."""
-    logger.info(f"Processing {incident['number']} with triage ID {triage_id}")
-    
-    try:
-        result = await process_incident(incident)
-        logger.info(f"Completed processing {incident['number']}: {result['status']}")
-        
-        # Store result
-        redis_client.set(
-            f"triage:result:{triage_id}",
-            json.dumps(result),
-            ex=86400  # 24 hour TTL
-        )
-    except Exception as e:
-        logger.error(f"Error processing {incident['number']}: {e}")
-        redis_client.set(
-            f"triage:result:{triage_id}",
-            json.dumps({"status": "error", "error": str(e)}),
-            ex=86400
-        )
 
 
 @app.get("/triage/{triage_id}")

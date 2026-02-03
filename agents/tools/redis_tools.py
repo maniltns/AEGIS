@@ -1,22 +1,26 @@
-# AEGIS Redis Tools for CrewAI
+# AEGIS Redis Tools - v2.1 (LangGraph Compatible)
 """
 Redis integration tools for AEGIS agents.
-Handles Storm Shield, Kill Switch, and governance state.
+Handles Storm Shield (vector-based), Kill Switch, and governance state.
 """
 
 import os
 import json
-import hashlib
+import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
-from crewai.tools import BaseTool
-from pydantic import BaseModel, Field
+from typing import Dict, Any, Optional, Tuple
 import redis
+import httpx
+
+logger = logging.getLogger("aegis.redis_tools")
 
 # Redis Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+# RAG Service for vector similarity
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8100")
 
 
 class RedisClient:
@@ -61,55 +65,142 @@ class RedisClient:
     
     def lrange(self, key: str, start: int, end: int) -> list:
         return self.client.lrange(key, start, end)
-
-
-# =============================================================================
-# STORM SHIELD TOOLS
-# =============================================================================
-
-class CheckDuplicateInput(BaseModel):
-    """Input for duplicate check."""
-    short_description: str = Field(..., description="Incident short description")
-    ci_name: Optional[str] = Field(None, description="Configuration Item name")
-    category: Optional[str] = Field(None, description="Incident category")
-
-
-class CheckDuplicateTool(BaseTool):
-    """Check if incident is a duplicate using Storm Shield."""
-    name: str = "check_duplicate"
-    description: str = "Check if incident is a duplicate of an existing open incident within the storm window"
-    args_schema: type[BaseModel] = CheckDuplicateInput
     
-    def _run(self, short_description: str, ci_name: str = None, category: str = None) -> str:
-        client = RedisClient()
+    def zadd(self, name: str, mapping: dict) -> int:
+        return self.client.zadd(name, mapping)
+    
+    def zrangebyscore(self, name: str, min: float, max: float) -> list:
+        return self.client.zrangebyscore(name, min, max)
+
+
+# =============================================================================
+# STORM SHIELD - VECTOR SIMILARITY (v2.1)
+# =============================================================================
+
+async def check_duplicate_vector(
+    text: str,
+    incident_number: str,
+    time_window_minutes: int = 15,
+    similarity_threshold: float = 0.90
+) -> Tuple[bool, Optional[str]]:
+    """
+    Check for semantically similar incidents using vector similarity.
+    
+    Args:
+        text: Incident short description (scrubbed)
+        incident_number: Current incident number
+        time_window_minutes: Time window for duplicate detection
+        similarity_threshold: Minimum similarity score (0.0-1.0)
         
-        # Create fingerprint from incident attributes
-        fingerprint_data = f"{short_description}:{ci_name or ''}:{category or ''}"
-        fingerprint = hashlib.sha256(fingerprint_data.lower().encode()).hexdigest()[:16]
-        
-        storm_key = f"storm:fingerprint:{fingerprint}"
-        existing = client.get(storm_key)
-        
-        if existing:
-            # Increment duplicate count
-            count_key = f"storm:count:{fingerprint}"
-            count = client.incr(count_key)
-            client.expire(count_key, 3600)  # 1 hour expiry
+    Returns:
+        Tuple of (is_duplicate, parent_incident_number or None)
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # Call RAG service for similar incidents
+            response = await client.post(
+                f"{RAG_SERVICE_URL}/search/similar",
+                json={
+                    "query": text,
+                    "collection": "incidents",
+                    "time_window_minutes": time_window_minutes,
+                    "threshold": similarity_threshold,
+                    "exclude_id": incident_number,
+                    "limit": 1
+                }
+            )
             
-            existing_data = json.loads(existing)
-            return json.dumps({
-                "is_duplicate": True,
-                "parent_incident": existing_data.get("incident_number"),
-                "duplicate_count": count,
-                "fingerprint": fingerprint,
-                "message": f"Duplicate detected. Parent: {existing_data.get('incident_number')}"
-            })
+            if response.status_code == 200:
+                data = response.json()
+                matches = data.get("matches", [])
+                
+                if matches and len(matches) > 0:
+                    match = matches[0]
+                    similarity = match.get("score", 0)
+                    parent_id = match.get("incident_number")
+                    
+                    if similarity >= similarity_threshold:
+                        logger.info(
+                            f"[STORM] Duplicate detected: {incident_number} -> {parent_id} "
+                            f"(similarity: {similarity:.2%})"
+                        )
+                        # Record in Redis for stats
+                        redis_client = RedisClient()
+                        redis_client.incr(f"storm:duplicates:{datetime.utcnow().strftime('%Y%m%d')}")
+                        return True, parent_id
         
-        return json.dumps({
-            "is_duplicate": False,
-            "fingerprint": fingerprint,
-            "message": "No duplicate found. This is a new incident pattern."
-        })
+        return False, None
+        
+    except Exception as e:
+        logger.error(f"[STORM] Vector similarity check failed: {e}")
+        # Fail open - don't block tickets if RAG service is down
+        return False, None
+
+
+async def record_incident_embedding(
+    incident_number: str,
+    text: str,
+    metadata: dict = None
+) -> bool:
+    """
+    Record incident embedding in RAG service for future duplicate detection.
+    
+    Args:
+        incident_number: Incident number
+        text: Text to embed (short_description)
+        metadata: Additional metadata
+        
+    Returns:
+        True if successful
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{RAG_SERVICE_URL}/embed/incident",
+                json={
+                    "incident_number": incident_number,
+                    "text": text,
+                    "metadata": metadata or {},
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            )
+            return response.status_code == 200
+    except Exception as e:
+        logger.error(f"[STORM] Failed to record embedding: {e}")
+        return False
+
+
+async def get_governance_state() -> dict:
+    """
+    Get current governance state from Redis.
+    
+    Returns:
+        Dict with enabled, mode, and threshold values
+    """
+    client = RedisClient()
+    
+    # Check kill switch
+    kill_switch = client.get("gov:killswitch")
+    enabled = kill_switch != "false"
+    
+    # Get mode
+    mode = client.get("gov:mode") or "assist"
+    
+    # Get thresholds
+    thresholds = {
+        "threshold_assign": int(client.get("gov:threshold:auto_assign") or 85),
+        "threshold_categorize": int(client.get("gov:threshold:auto_categorize") or 80),
+        "threshold_remediate": int(client.get("gov:threshold:auto_remediate") or 95),
+    }
+    
+    return {
+        "enabled": enabled,
+        "mode": mode,
+        **thresholds
+    }
+
+
+
 
 
 class RecordIncidentInput(BaseModel):
