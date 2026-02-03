@@ -14,7 +14,7 @@ function Dashboard() {
     const [stats, setStats] = useState({
         processed_today: 0,
         blocked_today: 0,
-        active_agents: 9,
+        active_nodes: 4,
         success_rate: 94
     })
     const [status, setStatus] = useState({
@@ -48,7 +48,7 @@ function Dashboard() {
             setStats({
                 processed_today: 127,
                 blocked_today: 12,
-                active_agents: 9,
+                active_nodes: 4,
                 success_rate: 94
             })
         }
@@ -64,11 +64,11 @@ function Dashboard() {
         } catch (err) {
             // Demo data
             setRecentLogs([
-                { timestamp: new Date().toISOString(), agent: 'SHERLOCK', incident: 'INC0012345', action: 'Triaged (94%)' },
-                { timestamp: new Date(Date.now() - 60000).toISOString(), agent: 'GUARDIAN', incident: 'INC0012346', action: 'Blocked (Duplicate)' },
-                { timestamp: new Date(Date.now() - 120000).toISOString(), agent: 'ROUTER', incident: 'INC0012345', action: 'Assigned to L2-Network' },
-                { timestamp: new Date(Date.now() - 180000).toISOString(), agent: 'HERALD', incident: 'INC0012344', action: 'Teams Notification Sent' },
-                { timestamp: new Date(Date.now() - 240000).toISOString(), agent: 'SCOUT', incident: 'INC0012343', action: 'Enriched (CMDB + User)' },
+                { timestamp: new Date().toISOString(), agent: 'TRIAGE_LLM', incident: 'INC0012345', action: 'Classified (94%)' },
+                { timestamp: new Date(Date.now() - 60000).toISOString(), agent: 'GUARDRAILS', incident: 'INC0012346', action: 'Blocked (Duplicate)' },
+                { timestamp: new Date(Date.now() - 120000).toISOString(), agent: 'EXECUTOR', incident: 'INC0012345', action: 'Assigned to L2-Network' },
+                { timestamp: new Date(Date.now() - 180000).toISOString(), agent: 'EXECUTOR', incident: 'INC0012344', action: 'Teams Card Sent' },
+                { timestamp: new Date(Date.now() - 240000).toISOString(), agent: 'ENRICHMENT', incident: 'INC0012343', action: 'KB + User Context Added' },
             ])
         }
     }
@@ -145,8 +145,8 @@ function Dashboard() {
                             <Bot size={22} />
                         </div>
                     </div>
-                    <div className="stat-card-value">{stats.active_agents}</div>
-                    <div className="stat-card-label">Active Agents</div>
+                    <div className="stat-card-value">{stats.active_nodes}</div>
+                    <div className="stat-card-label">Pipeline Nodes</div>
                 </div>
 
                 <div className="stat-card">
@@ -172,7 +172,7 @@ function Dashboard() {
                         <thead>
                             <tr>
                                 <th>Time</th>
-                                <th>Agent</th>
+                                <th>Node</th>
                                 <th>Incident</th>
                                 <th>Action</th>
                             </tr>

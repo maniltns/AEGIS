@@ -2,125 +2,80 @@ import { useState } from 'react'
 import {
     Shield,
     Search,
-    Crosshair,
-    RotateCcw,
-    Gavel,
-    Bell,
-    FileText,
-    ArrowRightLeft,
-    Wrench,
+    Brain,
+    Zap,
     Plus,
-    Power,
-    Settings
+    Settings,
+    GitBranch
 } from 'lucide-react'
 
-const AGENTS = [
+const PIPELINE_NODES = [
     {
-        id: 'guardian',
-        name: 'GUARDIAN',
-        role: 'Storm Shield',
-        description: 'Duplicate detection & storm suppression',
+        id: 'guardrails',
+        name: 'GUARDRAILS',
+        role: 'Security & Dedup',
+        description: 'PII scrubbing (Presidio) + Vector duplicate detection (90% similarity)',
         icon: Shield,
         color: '#6366f1',
-        active: true
+        active: true,
+        order: 1
     },
     {
-        id: 'scout',
-        name: 'SCOUT',
-        role: 'Enrichment',
-        description: 'Context gathering from CMDB, users, KB',
+        id: 'enrichment',
+        name: 'ENRICHMENT',
+        role: 'Context Gathering',
+        description: 'KB article search, user info, CMDB CI details',
         icon: Search,
-        color: '#8b5cf6',
-        active: true
-    },
-    {
-        id: 'sherlock',
-        name: 'SHERLOCK',
-        role: 'AI Triage',
-        description: 'Classification, RCA, KB matching',
-        icon: Crosshair,
         color: '#22c55e',
-        active: true
+        active: true,
+        order: 2
     },
     {
-        id: 'router',
-        name: 'ROUTER',
-        role: 'Assignment',
-        description: 'Team workload & skills matching',
-        icon: RotateCcw,
+        id: 'triage_llm',
+        name: 'TRIAGE LLM',
+        role: 'AI Classification',
+        description: 'Single LLM call for classification, priority, routing, action',
+        icon: Brain,
         color: '#f59e0b',
-        active: true
+        active: true,
+        order: 3
     },
     {
-        id: 'arbiter',
-        name: 'ARBITER',
-        role: 'Governance',
-        description: 'Kill switch, thresholds, approvals',
-        icon: Gavel,
-        color: '#ef4444',
-        active: true
-    },
-    {
-        id: 'herald',
-        name: 'HERALD',
-        role: 'Notifications',
-        description: 'Teams cards, swarm channels',
-        icon: Bell,
-        color: '#3b82f6',
-        active: true
-    },
-    {
-        id: 'scribe',
-        name: 'SCRIBE',
-        role: 'Audit',
-        description: 'Decision logging, compliance',
-        icon: FileText,
-        color: '#ec4899',
-        active: true
-    },
-    {
-        id: 'bridge',
-        name: 'BRIDGE',
-        role: 'Case→Incident',
-        description: 'Case analysis & conversion',
-        icon: ArrowRightLeft,
-        color: '#14b8a6',
-        active: true
-    },
-    {
-        id: 'janitor',
-        name: 'JANITOR',
-        role: 'Remediation',
-        description: 'Standard changes, rollback',
-        icon: Wrench,
-        color: '#a855f7',
-        active: true
+        id: 'executor',
+        name: 'EXECUTOR',
+        role: 'Action Engine',
+        description: 'ServiceNow update, Teams notification, SSM auto-heal',
+        icon: Zap,
+        color: '#8b5cf6',
+        active: true,
+        order: 4
     },
 ]
 
 function Agents() {
-    const [agents, setAgents] = useState(AGENTS)
+    const [nodes, setNodes] = useState(PIPELINE_NODES)
     const [showAddModal, setShowAddModal] = useState(false)
-    const [newAgent, setNewAgent] = useState({ name: '', role: '', description: '' })
+    const [newNode, setNewNode] = useState({ name: '', role: '', description: '' })
 
-    const toggleAgent = (id) => {
-        setAgents(agents.map(agent =>
-            agent.id === id ? { ...agent, active: !agent.active } : agent
+    const toggleNode = (id) => {
+        setNodes(nodes.map(node =>
+            node.id === id ? { ...node, active: !node.active } : node
         ))
     }
 
-    const handleAddAgent = () => {
-        if (newAgent.name && newAgent.role) {
-            setAgents([...agents, {
-                id: newAgent.name.toLowerCase(),
-                name: newAgent.name.toUpperCase(),
-                role: newAgent.role,
-                description: newAgent.description || 'Custom agent',
+    const handleAddNode = () => {
+        if (newNode.name && newNode.role) {
+            setNodes([...nodes, {
+                id: newNode.name.toLowerCase().replace(/\s/g, '_'),
+                name: newNode.name.toUpperCase(),
+                role: newNode.role,
+                description: newNode.description || 'Custom pipeline node',
                 icon: Settings,
                 color: '#6366f1',
-                active: true
+                active: true,
+                order: nodes.length + 1
             }])
-            setNewAgent({ name: '', role: '', description: '' })
+            setNewNode({ name: '', role: '', description: '' })
             setShowAddModal(false)
         }
     }
@@ -129,40 +84,86 @@ function Agents() {
         <div>
             <div className="page-header">
                 <div>
-                    <h1 className="page-title">Agents</h1>
-                    <p className="page-subtitle">Manage your AI agent swarm</p>
+                    <h1 className="page-title">Pipeline Nodes</h1>
+                    <p className="page-subtitle">LangGraph v2.1 triage pipeline configuration</p>
                 </div>
                 <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
                     <Plus size={18} />
-                    Add Agent
+                    Add Node
                 </button>
             </div>
 
+            {/* Pipeline Flow Diagram */}
+            <div className="card" style={{ marginBottom: '24px', padding: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <GitBranch size={20} color="var(--accent-primary)" />
+                    <h3 style={{ margin: 0, fontSize: '16px' }}>Pipeline Flow</h3>
+                </div>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                }}>
+                    {nodes.sort((a, b) => a.order - b.order).map((node, index) => (
+                        <div key={node.id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{
+                                background: `${node.color}15`,
+                                border: `2px solid ${node.active ? node.color : '#666'}`,
+                                borderRadius: '12px',
+                                padding: '12px 20px',
+                                textAlign: 'center',
+                                opacity: node.active ? 1 : 0.5
+                            }}>
+                                <node.icon size={20} color={node.color} />
+                                <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '4px' }}>
+                                    {node.name}
+                                </div>
+                            </div>
+                            {index < nodes.length - 1 && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '20px' }}>→</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             <div className="agent-grid">
-                {agents.map((agent) => (
-                    <div key={agent.id} className="agent-card">
+                {nodes.map((node) => (
+                    <div key={node.id} className="agent-card">
                         <div className="agent-card-header">
                             <div
                                 className="agent-icon"
-                                style={{ background: `${agent.color}20`, color: agent.color }}
+                                style={{ background: `${node.color}20`, color: node.color }}
                             >
-                                <agent.icon size={24} />
+                                <node.icon size={24} />
                             </div>
                             <div className="agent-info">
-                                <div className="agent-name">{agent.name}</div>
-                                <div className="agent-role">{agent.role}</div>
+                                <div className="agent-name">{node.name}</div>
+                                <div className="agent-role">{node.role}</div>
                             </div>
                         </div>
                         <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '12px' }}>
-                            {agent.description}
+                            {node.description}
                         </p>
+                        <div style={{
+                            fontSize: '12px',
+                            color: 'var(--text-muted)',
+                            marginTop: '8px',
+                            padding: '8px 12px',
+                            background: 'var(--bg-tertiary)',
+                            borderRadius: '6px'
+                        }}>
+                            Order: {node.order} of {nodes.length}
+                        </div>
                         <div className="agent-status">
                             <div
-                                className={`toggle ${agent.active ? 'active' : ''}`}
-                                onClick={() => toggleAgent(agent.id)}
+                                className={`toggle ${node.active ? 'active' : ''}`}
+                                onClick={() => toggleNode(node.id)}
                             />
                             <span className="status-text">
-                                {agent.active ? 'Active' : 'Inactive'}
+                                {node.active ? 'Active' : 'Bypassed'}
                             </span>
                             <button
                                 className="btn btn-secondary"
@@ -179,42 +180,42 @@ function Agents() {
                 <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">Add New Agent</h3>
+                            <h3 className="modal-title">Add New Pipeline Node</h3>
                             <button className="modal-close" onClick={() => setShowAddModal(false)}>✕</button>
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Agent Name</label>
+                            <label className="form-label">Node Name</label>
                             <input
                                 className="input"
-                                placeholder="e.g. ANALYZER"
-                                value={newAgent.name}
-                                onChange={e => setNewAgent({ ...newAgent, name: e.target.value })}
+                                placeholder="e.g. VALIDATOR"
+                                value={newNode.name}
+                                onChange={e => setNewNode({ ...newNode, name: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Role</label>
                             <input
                                 className="input"
-                                placeholder="e.g. Data Analysis"
-                                value={newAgent.role}
-                                onChange={e => setNewAgent({ ...newAgent, role: e.target.value })}
+                                placeholder="e.g. Output Validation"
+                                value={newNode.role}
+                                onChange={e => setNewNode({ ...newNode, role: e.target.value })}
                             />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Description</label>
                             <input
                                 className="input"
-                                placeholder="What does this agent do?"
-                                value={newAgent.description}
-                                onChange={e => setNewAgent({ ...newAgent, description: e.target.value })}
+                                placeholder="What does this node do?"
+                                value={newNode.description}
+                                onChange={e => setNewNode({ ...newNode, description: e.target.value })}
                             />
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddModal(false)}>
                                 Cancel
                             </button>
-                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAddAgent}>
-                                Add Agent
+                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAddNode}>
+                                Add Node
                             </button>
                         </div>
                     </div>

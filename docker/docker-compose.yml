@@ -1,12 +1,12 @@
-# AEGIS Docker Compose - CrewAI + LangFlow Stack
-# Version: 2.0.0
-# Stack: CrewAI, LangFlow, FastAPI, Redis, ChromaDB
+# AEGIS Docker Compose - LangGraph Pipeline Stack
+# Version: 2.1.0
+# Stack: FastAPI, LangGraph, Redis, ChromaDB, Admin Portal
 
 version: '3.8'
 
 services:
   # ===========================================================================
-  # AEGIS API Server (FastAPI + CrewAI)
+  # AEGIS API Server (FastAPI + LangGraph)
   # ===========================================================================
   aegis-api:
     build:
@@ -48,30 +48,43 @@ services:
       retries: 3
 
   # ===========================================================================
-  # LangFlow Visual Pipeline Builder
+  # Triage Worker (LangGraph Pipeline)
   # ===========================================================================
-  langflow:
-    image: langflowai/langflow:latest
-    container_name: aegis-langflow
-    ports:
-      - "7860:7860"
+  aegis-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    command: python workers/triage_worker.py
     environment:
-      - LANGFLOW_DATABASE_URL=sqlite:///./langflow.db
-      - LANGFLOW_SUPERUSER=admin
-      - LANGFLOW_SUPERUSER_PASSWORD=${LANGFLOW_PASSWORD:-aegis2026}
+      # LLM Configuration
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-    volumes:
-      - langflow-data:/app/langflow
-      - ./langflow/flows:/app/flows
+
+      # ServiceNow
+      - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
+      - SERVICENOW_USER=${SERVICENOW_USER}
+      - SERVICENOW_PASSWORD=${SERVICENOW_PASSWORD}
+
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+      # RAG Service
+      - RAG_SERVICE_URL=http://rag-service:8100
+
+      # Teams
+      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
+    depends_on:
+      - redis
+      - rag-service
     networks:
       - aegis-network
     restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:7860/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    deploy:
+      replicas: 2 # Run 2 workers for parallel processing
+    volumes:
+      - /var/log/aegis:/var/log/aegis
 
   # ===========================================================================
   # RAG Service (FastAPI + ChromaDB + Bedrock)
@@ -121,7 +134,7 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
-  # Redis Stack (Governance, Caching, Storm Shield)
+  # Redis Stack (Governance, Queue, Storm Shield)
   # ===========================================================================
   redis:
     image: redis/redis-stack:latest
@@ -156,11 +169,13 @@ services:
     entrypoint: >
       sh -c "
         echo 'Initializing Redis governance keys...'
-        redis-cli -h redis SET gov:killswitch true
+        redis-cli -h redis SET gov:killswitch false
         redis-cli -h redis SET gov:mode assist
         redis-cli -h redis SET gov:threshold:auto_assign 85
         redis-cli -h redis SET gov:threshold:auto_categorize 80
         redis-cli -h redis SET gov:threshold:auto_remediate 95
+        echo 'Initializing Redis queue...'
+        redis-cli -h redis PING
         echo 'Redis initialization complete!'
       "
     restart: "no"
@@ -181,46 +196,6 @@ services:
       - aegis-network
     restart: unless-stopped
 
-  # ===========================================================================
-  # Triage Worker (LangGraph Pipeline)
-  # ===========================================================================
-  aegis-worker:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.api
-    container_name: aegis-worker
-    command: python workers/triage_worker.py
-    environment:
-      # LLM Configuration
-      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
-      # ServiceNow
-      - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
-      - SERVICENOW_USER=${SERVICENOW_USER}
-      - SERVICENOW_PASSWORD=${SERVICENOW_PASSWORD}
-
-      # Redis
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-      # RAG Service
-      - RAG_SERVICE_URL=http://rag-service:8100
-
-      # Teams
-      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
-    depends_on:
-      - redis
-      - rag-service
-    networks:
-      - aegis-network
-    restart: unless-stopped
-    deploy:
-      replicas: 2 # Run 2 workers for parallel processing
-    volumes:
-      - /var/log/aegis:/var/log/aegis
-
 # =============================================================================
 # NETWORKS
 # =============================================================================
@@ -237,5 +212,3 @@ volumes:
     name: aegis-redis-data
   chroma-data:
     name: aegis-chroma-data
-  langflow-data:
-    name: aegis-langflow-data

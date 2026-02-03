@@ -1,4 +1,4 @@
-# AEGIS API Dockerfile
+# AEGIS API Dockerfile (v2.1 LangGraph Stack)
 FROM python:3.11-slim
 
 # Set working directory
@@ -15,12 +15,20 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download spaCy model for Presidio
+RUN python -m spacy download en_core_web_lg
+
 # Copy application code
 COPY agents/ ./agents/
+COPY workers/ ./workers/
+COPY utils/ ./utils/
 COPY api.py .
 
+# Create log directory
+RUN mkdir -p /var/log/aegis
+
 # Create non-root user
-RUN useradd -m -u 1000 aegis && chown -R aegis:aegis /app
+RUN useradd -m -u 1000 aegis && chown -R aegis:aegis /app /var/log/aegis
 USER aegis
 
 # Expose port

@@ -12,7 +12,7 @@ import {
 function Sidebar({ user, onLogout }) {
     const navItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
-        { path: '/agents', icon: Bot, label: 'Agents' },
+        { path: '/agents', icon: Bot, label: 'Pipeline' },
         { path: '/connectors', icon: Plug, label: 'Connectors' },
         { path: '/logs', icon: ScrollText, label: 'Logs' },
         { path: '/settings', icon: Settings, label: 'Settings' },
