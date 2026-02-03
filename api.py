@@ -396,8 +396,124 @@ async def get_killswitch_audit():
 
 
 # =============================================================================
-# MAIN
+# ADMIN ENDPOINTS
 # =============================================================================
+
+# Default credentials (override via environment)
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "aegis2026")
+
+
+class LoginPayload(BaseModel):
+    """Login payload."""
+    username: str
+    password: str
+
+
+class AgentPayload(BaseModel):
+    """Agent creation payload."""
+    name: str
+    role: str
+    description: Optional[str] = None
+
+
+@app.post("/auth/login")
+async def login(payload: LoginPayload):
+    """Simple username/password authentication."""
+    if payload.username == ADMIN_USERNAME and payload.password == ADMIN_PASSWORD:
+        token = f"aegis-token-{datetime.utcnow().timestamp()}"
+        return {
+            "username": payload.username,
+            "token": token,
+            "role": "admin"
+        }
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+@app.get("/admin/agents")
+async def get_agents():
+    """Get all agents and their status."""
+    agents = redis_client.hgetall("agents:status") or {}
+    
+    default_agents = [
+        {"id": "guardian", "name": "GUARDIAN", "role": "Storm Shield", "active": True},
+        {"id": "scout", "name": "SCOUT", "role": "Enrichment", "active": True},
+        {"id": "sherlock", "name": "SHERLOCK", "role": "AI Triage", "active": True},
+        {"id": "router", "name": "ROUTER", "role": "Assignment", "active": True},
+        {"id": "arbiter", "name": "ARBITER", "role": "Governance", "active": True},
+        {"id": "herald", "name": "HERALD", "role": "Notifications", "active": True},
+        {"id": "scribe", "name": "SCRIBE", "role": "Audit", "active": True},
+        {"id": "bridge", "name": "BRIDGE", "role": "Case→Incident", "active": True},
+        {"id": "janitor", "name": "JANITOR", "role": "Remediation", "active": True},
+    ]
+    
+    # Merge with stored status
+    for agent in default_agents:
+        status = agents.get(agent["id"])
+        if status:
+            agent["active"] = status == "true"
+    
+    return {"agents": default_agents}
+
+
+@app.post("/admin/agents/{agent_id}/toggle")
+async def toggle_agent(agent_id: str, enabled: bool = True):
+    """Toggle an agent on/off."""
+    redis_client.hset("agents:status", agent_id, "true" if enabled else "false")
+    return {"success": True, "agent": agent_id, "enabled": enabled}
+
+
+@app.post("/admin/agents")
+async def add_agent(payload: AgentPayload):
+    """Add a new custom agent."""
+    agent_id = payload.name.lower()
+    agent_data = {
+        "id": agent_id,
+        "name": payload.name.upper(),
+        "role": payload.role,
+        "description": payload.description or "Custom agent",
+        "active": True
+    }
+    redis_client.hset("agents:custom", agent_id, json.dumps(agent_data))
+    redis_client.hset("agents:status", agent_id, "true")
+    return {"success": True, "agent": agent_data}
+
+
+@app.get("/admin/logs")
+async def get_logs(filter: str = "all", limit: int = 50):
+    """Get system logs."""
+    logs = []
+    
+    # Get from Redis lists
+    raw_logs = redis_client.lrange("logs:activity", 0, limit - 1)
+    for entry in raw_logs:
+        try:
+            logs.append(json.loads(entry))
+        except:
+            pass
+    
+    # If no logs, return empty list (UI will show demo data)
+    if filter != "all":
+        logs = [log for log in logs if log.get("level") == filter]
+    
+    return {"logs": logs, "count": len(logs)}
+
+
+@app.get("/admin/connectors")
+async def get_connectors():
+    """Get connector configurations."""
+    connectors = redis_client.hgetall("connectors:config") or {}
+    return {"connectors": connectors}
+
+
+@app.post("/admin/connectors/{connector_id}")
+async def save_connector(connector_id: str, config: Dict[str, Any]):
+    """Save connector configuration."""
+    redis_client.hset("connectors:config", connector_id, json.dumps(config))
+    return {"success": True, "connector": connector_id}
+
+
+
 
 if __name__ == "__main__":
     uvicorn.run(

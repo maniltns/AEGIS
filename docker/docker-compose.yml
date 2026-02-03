@@ -165,6 +165,22 @@ services:
       "
     restart: "no"
 
+  # ===========================================================================
+  # Admin Portal (React + Vite)
+  # ===========================================================================
+  admin-portal:
+    build:
+      context: ./admin-portal
+      dockerfile: Dockerfile
+    container_name: aegis-admin
+    ports:
+      - "3000:80"
+    depends_on:
+      - aegis-api
+    networks:
+      - aegis-network
+    restart: unless-stopped
+
 # =============================================================================
 # NETWORKS
 # =============================================================================
