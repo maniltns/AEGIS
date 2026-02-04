@@ -139,7 +139,7 @@ services:
     container_name: aegis-redis
     ports:
       - "6379:6379"
-      - "8001:8001"
+      - "8501:8001" # RedisInsight
     volumes:
       - redis-data:/data
       - ./redis.conf:/usr/local/etc/redis/redis.conf
