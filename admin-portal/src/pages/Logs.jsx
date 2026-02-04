@@ -28,24 +28,26 @@ function Logs() {
     }
 
     const generateDemoLogs = () => {
-        const agents = ['GUARDIAN', 'SCOUT', 'SHERLOCK', 'ROUTER', 'ARBITER', 'HERALD', 'SCRIBE', 'BRIDGE', 'JANITOR']
+        // v2.1 LangGraph Pipeline Nodes
+        const nodes = ['GUARDRAILS', 'ENRICHMENT', 'TRIAGE_LLM', 'EXECUTOR']
         const actions = [
-            'Triaged incident (94% confidence)',
-            'Blocked duplicate incident',
-            'Enriched with CMDB data',
-            'Assigned to L2-Network',
-            'Sent Teams notification',
-            'Logged decision to audit',
-            'Converted Case to Incident',
-            'Executed print spooler restart',
-            'Approved by governance rules'
+            'PII scrubbed (3 fields redacted)',
+            'Blocked duplicate incident (92% similarity)',
+            'Enriched with KB article KB0012345',
+            'CMDB CI found: CI0001234',
+            'Classified: Network > Connectivity (94%)',
+            'Assigned to L2-Network team',
+            'Sent Teams notification to #incidents',
+            'Updated ServiceNow work notes',
+            'Triggered SSM remediation script',
+            'Escalated to P1 (VIP user detected)'
         ]
         const levels = ['info', 'warning', 'error', 'success']
 
         return Array(30).fill().map((_, i) => ({
             id: i + 1,
             timestamp: new Date(Date.now() - i * 120000).toISOString(),
-            agent: agents[Math.floor(Math.random() * agents.length)],
+            agent: nodes[Math.floor(Math.random() * nodes.length)],
             incident: `INC00${12345 - i}`,
             action: actions[Math.floor(Math.random() * actions.length)],
             level: levels[Math.floor(Math.random() * levels.length)],

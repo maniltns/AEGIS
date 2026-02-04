@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Shield,
     Search,
@@ -6,78 +6,113 @@ import {
     Zap,
     Plus,
     Settings,
-    GitBranch
+    GitBranch,
+    RefreshCw
 } from 'lucide-react'
+import api from '../api/client'
 
-const PIPELINE_NODES = [
-    {
-        id: 'guardrails',
-        name: 'GUARDRAILS',
-        role: 'Security & Dedup',
-        description: 'PII scrubbing (Presidio) + Vector duplicate detection (90% similarity)',
-        icon: Shield,
-        color: '#6366f1',
-        active: true,
-        order: 1
-    },
-    {
-        id: 'enrichment',
-        name: 'ENRICHMENT',
-        role: 'Context Gathering',
-        description: 'KB article search, user info, CMDB CI details',
-        icon: Search,
-        color: '#22c55e',
-        active: true,
-        order: 2
-    },
-    {
-        id: 'triage_llm',
-        name: 'TRIAGE LLM',
-        role: 'AI Classification',
-        description: 'Single LLM call for classification, priority, routing, action',
-        icon: Brain,
-        color: '#f59e0b',
-        active: true,
-        order: 3
-    },
-    {
-        id: 'executor',
-        name: 'EXECUTOR',
-        role: 'Action Engine',
-        description: 'ServiceNow update, Teams notification, SSM auto-heal',
-        icon: Zap,
-        color: '#8b5cf6',
-        active: true,
-        order: 4
-    },
-]
+// Icon mapping for node IDs
+const ICON_MAP = {
+    guardrails: Shield,
+    enrichment: Search,
+    triage_llm: Brain,
+    executor: Zap
+}
 
 function Agents() {
-    const [nodes, setNodes] = useState(PIPELINE_NODES)
+    const [nodes, setNodes] = useState([])
+    const [loading, setLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [newNode, setNewNode] = useState({ name: '', role: '', description: '' })
+    const [saving, setSaving] = useState(false)
 
-    const toggleNode = (id) => {
-        setNodes(nodes.map(node =>
-            node.id === id ? { ...node, active: !node.active } : node
-        ))
+    // Fetch nodes from API
+    const fetchNodes = async () => {
+        try {
+            setLoading(true)
+            const response = await api.getAgents()
+            const agents = response.agents || []
+            // Add icon component to each node
+            const nodesWithIcons = agents.map(node => ({
+                ...node,
+                icon: ICON_MAP[node.id] || Settings
+            }))
+            setNodes(nodesWithIcons)
+        } catch (err) {
+            console.error('Failed to fetch nodes:', err)
+            // Fallback to demo data
+            setNodes([
+                { id: 'guardrails', name: 'GUARDRAILS', role: 'Security & Dedup', description: 'PII scrubbing + Vector dedup', icon: Shield, color: '#6366f1', active: true, order: 1 },
+                { id: 'enrichment', name: 'ENRICHMENT', role: 'Context Gathering', description: 'KB search, user info, CMDB', icon: Search, color: '#22c55e', active: true, order: 2 },
+                { id: 'triage_llm', name: 'TRIAGE_LLM', role: 'AI Classification', description: 'Single LLM call for triage', icon: Brain, color: '#f59e0b', active: true, order: 3 },
+                { id: 'executor', name: 'EXECUTOR', role: 'Action Engine', description: 'ServiceNow update, Teams', icon: Zap, color: '#8b5cf6', active: true, order: 4 },
+            ])
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleAddNode = () => {
-        if (newNode.name && newNode.role) {
-            setNodes([...nodes, {
-                id: newNode.name.toLowerCase().replace(/\s/g, '_'),
-                name: newNode.name.toUpperCase(),
-                role: newNode.role,
-                description: newNode.description || 'Custom pipeline node',
-                icon: Settings,
-                color: '#6366f1',
-                active: true,
-                order: nodes.length + 1
-            }])
-            setNewNode({ name: '', role: '', description: '' })
-            setShowAddModal(false)
+    useEffect(() => {
+        fetchNodes()
+    }, [])
+
+    const toggleNode = async (id) => {
+        const node = nodes.find(n => n.id === id)
+        if (!node) return
+
+        const newState = !node.active
+
+        // Optimistic update
+        setNodes(nodes.map(n =>
+            n.id === id ? { ...n, active: newState } : n
+        ))
+
+        try {
+            await api.toggleAgent(id, newState)
+        } catch (err) {
+            // Revert on error
+            setNodes(nodes.map(n =>
+                n.id === id ? { ...n, active: !newState } : n
+            ))
+            console.error('Failed to toggle node:', err)
         }
+    }
+
+    const handleAddNode = async () => {
+        if (!newNode.name || !newNode.role) return
+
+        setSaving(true)
+        try {
+            const response = await api.addAgent({
+                name: newNode.name,
+                role: newNode.role,
+                description: newNode.description
+            })
+
+            if (response.success) {
+                // Add the new node with icon
+                const addedNode = {
+                    ...response.agent,
+                    icon: Settings
+                }
+                setNodes([...nodes, addedNode])
+                setNewNode({ name: '', role: '', description: '' })
+                setShowAddModal(false)
+            }
+        } catch (err) {
+            console.error('Failed to add node:', err)
+            alert('Failed to add node. Please try again.')
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+                <RefreshCw size={32} className="spin" style={{ color: 'var(--primary)' }} />
+            </div>
+        )
     }
 
     return (
@@ -87,10 +122,16 @@ function Agents() {
                     <h1 className="page-title">Pipeline Nodes</h1>
                     <p className="page-subtitle">LangGraph v2.1 triage pipeline configuration</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-                    <Plus size={18} />
-                    Add Node
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className="btn btn-secondary" onClick={fetchNodes}>
+                        <RefreshCw size={16} />
+                        Refresh
+                    </button>
+                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+                        <Plus size={18} />
+                        Add Node
+                    </button>
+                </div>
             </div>
 
             {/* Pipeline Flow Diagram */}
@@ -109,14 +150,14 @@ function Agents() {
                     {nodes.sort((a, b) => a.order - b.order).map((node, index) => (
                         <div key={node.id} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{
-                                background: `${node.color}15`,
-                                border: `2px solid ${node.active ? node.color : '#666'}`,
+                                background: `${node.color || '#6366f1'}15`,
+                                border: `2px solid ${node.active ? (node.color || '#6366f1') : '#666'}`,
                                 borderRadius: '12px',
                                 padding: '12px 20px',
                                 textAlign: 'center',
                                 opacity: node.active ? 1 : 0.5
                             }}>
-                                <node.icon size={20} color={node.color} />
+                                <node.icon size={20} color={node.color || '#6366f1'} />
                                 <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '4px' }}>
                                     {node.name}
                                 </div>
@@ -135,7 +176,7 @@ function Agents() {
                         <div className="agent-card-header">
                             <div
                                 className="agent-icon"
-                                style={{ background: `${node.color}20`, color: node.color }}
+                                style={{ background: `${node.color || '#6366f1'}20`, color: node.color || '#6366f1' }}
                             >
                                 <node.icon size={24} />
                             </div>
@@ -214,13 +255,28 @@ function Agents() {
                             <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddModal(false)}>
                                 Cancel
                             </button>
-                            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleAddNode}>
-                                Add Node
+                            <button
+                                className="btn btn-primary"
+                                style={{ flex: 1 }}
+                                onClick={handleAddNode}
+                                disabled={saving || !newNode.name || !newNode.role}
+                            >
+                                {saving ? 'Adding...' : 'Add Node'}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
+            <style>{`
+                .spin {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
         </div>
     )
 }

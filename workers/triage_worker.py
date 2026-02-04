@@ -118,6 +118,16 @@ class TriageWorker:
             # Process through LangGraph
             result = await process_incident(incident)
             
+            # Save result for API retrieval (/triage/{triage_id})
+            triage_id = incident.get("triage_id")
+            if triage_id:
+                self.redis.setex(
+                    f"triage:result:{triage_id}",
+                    86400,  # 24 hour TTL
+                    json.dumps(result)
+                )
+                logger.info(f"💾 Saved result: triage:result:{triage_id}")
+            
             # Log result
             self._log_result(incident_number, result)
             
@@ -147,21 +157,45 @@ class TriageWorker:
     
     def _log_result(self, incident_number: str, result: dict):
         """Log processing result to Redis."""
-        log_entry = {
-            "incident": incident_number,
-            "status": result.get("status"),
-            "confidence": result.get("confidence"),
-            "actions": result.get("actions_taken", []),
-            "timestamp": datetime.utcnow().isoformat(),
-            "error": result.get("error")
-        }
+        timestamp = datetime.utcnow().isoformat()
         
-        # Add to activity log (keep last 1000)
-        self.redis.lpush("logs:activity", json.dumps(log_entry))
+        # Determine log level based on status
+        status = result.get("status", "unknown")
+        level = "success" if status == "executed" else "warning" if status == "blocked" else "error" if status == "failed" else "info"
+        
+        # Log individual actions for better visibility
+        actions = result.get("actions_taken", [])
+        for action in actions:
+            # Determine which node performed this action
+            if "PII" in action or "duplicate" in action.lower() or "Blocked" in action:
+                agent = "GUARDRAILS"
+            elif "KB" in action or "Enriched" in action or "CMDB" in action:
+                agent = "ENRICHMENT"
+            elif "Triaged" in action or "confidence" in action.lower():
+                agent = "TRIAGE_LLM"
+            else:
+                agent = "EXECUTOR"
+            
+            log_entry = {
+                "id": f"{incident_number}_{len(actions)}",
+                "timestamp": timestamp,
+                "agent": agent,
+                "incident": incident_number,
+                "action": action,
+                "level": level,
+                "details": result.get("reasoning", "")
+            }
+            self.redis.lpush("logs:activity", json.dumps(log_entry))
+        
+        # Trim to keep last 1000 entries
         self.redis.ltrim("logs:activity", 0, 999)
         
         # Update stats
         self.redis.hincrby("stats:daily", datetime.utcnow().strftime("%Y-%m-%d"), 1)
+        
+        # Update processed count for today
+        today = datetime.utcnow().strftime("%Y%m%d")
+        self.redis.incr(f"stats:processed:{today}")
     
     def _get_retry_count(self, raw_item: str) -> int:
         """Get retry count from item metadata."""

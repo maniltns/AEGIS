@@ -461,46 +461,105 @@ async def login(payload: LoginPayload):
 
 @app.get("/admin/agents")
 async def get_agents():
-    """Get all agents and their status."""
-    agents = redis_client.hgetall("agents:status") or {}
+    """Get all pipeline nodes and their status."""
+    stored_status = redis_client.hgetall("agents:status") or {}
+    custom_agents = redis_client.hgetall("agents:custom") or {}
     
-    default_agents = [
-        {"id": "guardian", "name": "GUARDIAN", "role": "Storm Shield", "active": True},
-        {"id": "scout", "name": "SCOUT", "role": "Enrichment", "active": True},
-        {"id": "sherlock", "name": "SHERLOCK", "role": "AI Triage", "active": True},
-        {"id": "router", "name": "ROUTER", "role": "Assignment", "active": True},
-        {"id": "arbiter", "name": "ARBITER", "role": "Governance", "active": True},
-        {"id": "herald", "name": "HERALD", "role": "Notifications", "active": True},
-        {"id": "scribe", "name": "SCRIBE", "role": "Audit", "active": True},
-        {"id": "bridge", "name": "BRIDGE", "role": "Case→Incident", "active": True},
-        {"id": "janitor", "name": "JANITOR", "role": "Remediation", "active": True},
+    # v2.1 LangGraph Pipeline Nodes
+    default_nodes = [
+        {
+            "id": "guardrails",
+            "name": "GUARDRAILS",
+            "role": "Security & Dedup",
+            "description": "PII scrubbing (Presidio) + Vector duplicate detection (90% similarity)",
+            "color": "#6366f1",
+            "order": 1,
+            "active": True
+        },
+        {
+            "id": "enrichment",
+            "name": "ENRICHMENT",
+            "role": "Context Gathering",
+            "description": "KB article search, user info, CMDB CI details",
+            "color": "#22c55e",
+            "order": 2,
+            "active": True
+        },
+        {
+            "id": "triage_llm",
+            "name": "TRIAGE_LLM",
+            "role": "AI Classification",
+            "description": "Single LLM call for classification, priority, routing, action",
+            "color": "#f59e0b",
+            "order": 3,
+            "active": True
+        },
+        {
+            "id": "executor",
+            "name": "EXECUTOR",
+            "role": "Action Engine",
+            "description": "ServiceNow update, Teams notification, SSM auto-heal",
+            "color": "#8b5cf6",
+            "order": 4,
+            "active": True
+        },
     ]
     
     # Merge with stored status
-    for agent in default_agents:
-        status = agents.get(agent["id"])
+    for node in default_nodes:
+        status = stored_status.get(node["id"])
         if status:
-            agent["active"] = status == "true"
+            node["active"] = status == "true"
     
-    return {"agents": default_agents}
+    # Add custom nodes
+    for agent_id, agent_json in custom_agents.items():
+        try:
+            agent_data = json.loads(agent_json)
+            status = stored_status.get(agent_id, "true")
+            agent_data["active"] = status == "true"
+            default_nodes.append(agent_data)
+        except:
+            pass
+    
+    # Sort by order
+    default_nodes.sort(key=lambda x: x.get("order", 999))
+    
+    return {"agents": default_nodes}
 
 
 @app.post("/admin/agents/{agent_id}/toggle")
-async def toggle_agent(agent_id: str, enabled: bool = True):
-    """Toggle an agent on/off."""
+async def toggle_agent(agent_id: str, payload: Dict[str, Any] = None):
+    """Toggle a pipeline node on/off."""
+    enabled = True
+    if payload and "enabled" in payload:
+        enabled = payload["enabled"]
     redis_client.hset("agents:status", agent_id, "true" if enabled else "false")
     return {"success": True, "agent": agent_id, "enabled": enabled}
 
 
 @app.post("/admin/agents")
 async def add_agent(payload: AgentPayload):
-    """Add a new custom agent."""
-    agent_id = payload.name.lower()
+    """Add a new custom pipeline node."""
+    agent_id = payload.name.lower().replace(" ", "_")
+    
+    # Get current max order
+    stored_status = redis_client.hgetall("agents:status") or {}
+    custom_agents = redis_client.hgetall("agents:custom") or {}
+    max_order = 4  # Default nodes are 1-4
+    for agent_json in custom_agents.values():
+        try:
+            agent = json.loads(agent_json)
+            max_order = max(max_order, agent.get("order", 0))
+        except:
+            pass
+    
     agent_data = {
         "id": agent_id,
         "name": payload.name.upper(),
         "role": payload.role,
-        "description": payload.description or "Custom agent",
+        "description": payload.description or "Custom pipeline node",
+        "color": "#6366f1",  # Default purple
+        "order": max_order + 1,
         "active": True
     }
     redis_client.hset("agents:custom", agent_id, json.dumps(agent_data))
@@ -530,9 +589,138 @@ async def get_logs(filter: str = "all", limit: int = 50):
 
 @app.get("/admin/connectors")
 async def get_connectors():
-    """Get connector configurations."""
-    connectors = redis_client.hgetall("connectors:config") or {}
+    """Get all connectors with real-time health status."""
+    import httpx
+    
+    connectors = []
+    
+    # ServiceNow connector
+    snow_instance = os.getenv("SERVICENOW_INSTANCE")
+    snow_user = os.getenv("SERVICENOW_USER")
+    snow_pass = os.getenv("SERVICENOW_PASSWORD")
+    snow_status = "disconnected"
+    snow_message = "Not configured"
+    
+    if snow_instance and snow_user and snow_pass:
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(
+                    f"https://{snow_instance}/api/now/table/incident?sysparm_limit=1",
+                    auth=(snow_user, snow_pass)
+                )
+                if response.status_code == 200:
+                    snow_status = "connected"
+                    snow_message = f"Connected to {snow_instance}"
+                else:
+                    snow_status = "error"
+                    snow_message = f"Auth failed: {response.status_code}"
+        except Exception as e:
+            snow_status = "error"
+            snow_message = str(e)[:50]
+    
+    connectors.append({
+        "id": "servicenow",
+        "name": "ServiceNow",
+        "description": "ITSM platform for incidents, cases, RITMs, and knowledge base",
+        "logo": "🎟️",
+        "status": snow_status,
+        "message": snow_message,
+        "instance": snow_instance or "Not configured",
+        "features": ["Incidents", "Cases", "RITMs", "Knowledge Base", "CMDB"]
+    })
+    
+    # Teams connector
+    teams_webhook = os.getenv("TEAMS_WEBHOOK_URL")
+    teams_status = "connected" if teams_webhook else "disconnected"
+    teams_message = "Webhook configured" if teams_webhook else "No webhook URL"
+    
+    connectors.append({
+        "id": "teams",
+        "name": "Microsoft Teams",
+        "description": "Collaboration platform for notifications and approvals",
+        "logo": "💜",
+        "status": teams_status,
+        "message": teams_message,
+        "features": ["Webhooks", "Adaptive Cards", "Channels"]
+    })
+    
+    # Redis connector
+    try:
+        redis_client.ping()
+        redis_status = "connected"
+        redis_message = f"Connected to {os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}"
+    except:
+        redis_status = "error"
+        redis_message = "Connection failed"
+    
+    connectors.append({
+        "id": "redis",
+        "name": "Redis",
+        "description": "In-memory cache for governance and queue management",
+        "logo": "🔴",
+        "status": redis_status,
+        "message": redis_message,
+        "features": ["Governance", "Queue", "Storm Shield", "Caching"]
+    })
+    
+    # RAG Service / ChromaDB
+    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8100")
+    rag_status = "disconnected"
+    rag_message = "Not reachable"
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(f"{rag_url}/health")
+            if response.status_code == 200:
+                rag_status = "connected"
+                rag_message = "RAG service healthy"
+            else:
+                rag_status = "error"
+                rag_message = f"Status: {response.status_code}"
+    except Exception as e:
+        rag_status = "error"
+        rag_message = str(e)[:50]
+    
+    connectors.append({
+        "id": "rag",
+        "name": "RAG Service",
+        "description": "Knowledge retrieval with ChromaDB and Claude reasoning",
+        "logo": "🧠",
+        "status": rag_status,
+        "message": rag_message,
+        "features": ["KB Search", "Embeddings", "Claude Reasoning"]
+    })
+    
+    # AWS Bedrock
+    bedrock_token = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+    bedrock_model = os.getenv("BEDROCK_CLAUDE_SONNET_MODEL")
+    bedrock_status = "connected" if bedrock_token and bedrock_model else "disconnected"
+    bedrock_message = f"Model: {bedrock_model[:30]}..." if bedrock_model else "Not configured"
+    
+    connectors.append({
+        "id": "bedrock",
+        "name": "AWS Bedrock",
+        "description": "LLM provider for Claude Sonnet and Titan embeddings",
+        "logo": "☁️",
+        "status": bedrock_status,
+        "message": bedrock_message,
+        "features": ["Claude Sonnet", "Titan Embeddings"]
+    })
+    
     return {"connectors": connectors}
+
+
+@app.get("/admin/connectors/{connector_id}/health")
+async def check_connector_health(connector_id: str):
+    """Check health of a specific connector."""
+    connectors_response = await get_connectors()
+    connectors = connectors_response["connectors"]
+    
+    for connector in connectors:
+        if connector["id"] == connector_id:
+            return connector
+    
+    raise HTTPException(status_code=404, detail=f"Connector {connector_id} not found")
 
 
 @app.post("/admin/connectors/{connector_id}")
