@@ -38,6 +38,89 @@ AEGIS transforms Accor's IT Service Management from reactive ticket queues into 
 | 🔐 **PII Protection** | Microsoft Presidio | Data scrubbed before LLM |
 
 ---
+## 📊 Solution Comparison: Why AEGIS?
+
+### Feature Comparison Matrix
+
+|  ServiceNow | ITCI |
+
+| Capability | ServiceNow OOB | NowAssist (GenAI) | Virtual Agent | 🛡️ AEGIS |
+|------------|----------------|-------------------|---------------|----------|
+| **AI-Powered Triage** | ❌ Rule-based | ✅ GenAI summary | ⚠️ Scripted | ✅ Multi-agent swarm |
+| **Root Cause Analysis** | ❌ Manual | ✅ AI-assisted | ❌ N/A | ✅ KB-linked reasoning |
+| **Auto-Remediation** | ❌ N/A | ⚠️ Recommend only | ⚠️ Guided | ✅ Full execution |
+| **Storm Shield (Dedup)** | ⚠️ Basic | ❌ N/A | ❌ N/A | ✅ Redis fingerprint |
+| **Kill Switch** | ❌ N/A | ❌ N/A | ❌ N/A | ✅ Multi-level verified |
+| **Glass Box Audit** | N/A | ⚠️ Partial | ❌ Black box | ✅ Full trail |
+| **PMS Opera Integration** | ❌ N/A | ❌ N/A | ❌ N/A | ✅ OHIP + Selenium |
+| **GDPR Built-in** | ⚠️ Manual | ⚠️ Masking | ⚠️ Basic | ✅ PII scrubber |
+
+### Cost-Benefit Analysis (50 Agents)
+
+| Metric | NowAssist | Virtual Agent | 🛡️ AEGIS |
+|--------|-----------|---------------|----------|
+| **Annual License** | ~$96,000 | ~$25,000 | **$0** |
+| **5-Year TCO** | $655,000 | $190,000 | **$80,000** |
+| **Savings vs NowAssist** | — | 71% | **88%** |
+| **Time to Value** | 3-6 months | 1-3 months | **2-4 weeks** |
+
+### 5-Year TCO Breakdown
+
+| Component | NowAssist | Virtual Agent | 🛡️ AEGIS |
+|-----------|-----------|---------------|----------|
+| Licensing | $480,000 | $125,000 | $0 |
+| Infrastructure | Included | Included | $40,000 |
+| Implementation | $150,000 | $50,000 | $30,000 |
+| Training | $25,000 | $15,000 | $10,000 |
+| **TOTAL** | **$655,000** | **$190,000** | **$80,000** |
+
+*Above Figures are shown as Indicative and approximate number
+### Key Data Drivers for AEGIS
+
+```mermaid
+mindmap
+    root((🛡️ AEGIS<br/>Decision<br/>Drivers))
+        💰 Cost
+            88% lower TCO vs NowAssist
+            No per-agent licensing
+            Open-source orchestration
+            Self-hosted infrastructure
+        🎛️ Control
+            Self-hosted in VPC
+            Full data sovereignty
+            Custom agent logic
+            No vendor lock-in
+        🏨 Hospitality
+            PMS Opera native integration
+            ARS Portal automation
+            Finance approval workflows
+            Multi-hotel support
+        🔒 Compliance
+            GDPR built-in
+            Glass Box transparency
+            audit retention policy
+            Kill Switch governance
+        ⚡ Speed
+            4-6 week deployment
+            Rapid iteration
+            No vendor dependency
+```
+---
+
+## 🔍 Glass Box Principles
+
+> [!CAUTION]
+> **AEGIS operates as a Glass Box, NOT a Black Box.** Every AI decision is transparent, auditable, and reversible.
+
+### Core Principles
+
+| # | Principle | Description | Implementation |
+|---|-----------|-------------|----------------|
+| 1 | **Transparency** | All AI reasoning is visible to operators | SHERLOCK outputs structured JSON with reasoning |
+| 2 | **Human-in-the-Loop** | Critical actions require human approval | ARBITER gates all writes; JANITOR requires approval |
+| 3 | **Auditability** | Complete decision trail for compliance | SCRIBE logs every decision to `u_ai_audit_log` |
+| 4 | **Reversibility** | All actions can be rolled back | Work notes capture pre/post state |
+| 5 | **Explainability** | AI explains WHY it made each decision | KB references, confidence scores, similar cases |
 
 ## Technology Stack
 
