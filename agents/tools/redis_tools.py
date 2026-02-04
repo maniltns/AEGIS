@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple
 import redis
 import httpx
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("aegis.redis_tools")
 
