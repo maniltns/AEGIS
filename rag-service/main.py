@@ -27,7 +27,6 @@ from chromadb.config import Settings
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-import anthropic
 import logging
 
 # Configure logging
@@ -44,13 +43,15 @@ logger = logging.getLogger("aegis-rag")
 class Config:
     """RAG Service Configuration"""
     # AWS Bedrock Configuration
-    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
-    TITAN_MODEL_ID = os.getenv("TITAN_MODEL_ID", "amazon.titan-embed-text-v2:0")
+    AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+    AWS_BEARER_TOKEN = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+    
+    # Titan Embedding Model
+    TITAN_MODEL_ID = os.getenv("AWS_TITAN_EMBEDDING_MODEL", "amazon.titan-embed-text-v2:0")
     TITAN_EMBED_DIMENSION = 1024
     
-    # Anthropic Configuration
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-5-20250514")
+    # Claude via Bedrock
+    CLAUDE_MODEL = os.getenv("BEDROCK_CLAUDE_SONNET_MODEL", "anthropic.claude-3-5-sonnet-20241022-v2:0")
     
     # ChromaDB Configuration
     CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "/data/chromadb")
@@ -188,12 +189,15 @@ class TitanEmbeddings:
 # =============================================================================
 
 class ClaudeReasoning:
-    """Claude Sonnet 4.5 Reasoning Client"""
+    """Claude Sonnet via AWS Bedrock Reasoning Client"""
     
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
-        self.model = Config.CLAUDE_MODEL
-        logger.info(f"Initialized Claude Reasoning: {self.model}")
+        self.client = boto3.client(
+            'bedrock-runtime',
+            region_name=Config.AWS_REGION
+        )
+        self.model_id = Config.CLAUDE_MODEL
+        logger.info(f"Initialized Claude Reasoning via Bedrock: {self.model_id}")
     
     def analyze_ticket(
         self,
@@ -212,10 +216,11 @@ class ClaudeReasoning:
         )
         
         try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=2048,
-                system="""You are SHERLOCK, the AI Triage Agent for AEGIS (Autonomous Expert for Governance, Intelligence & Swarming).
+            # Use Bedrock converse API for Claude
+            response = self.client.converse(
+                modelId=self.model_id,
+                system=[{
+                    "text": """You are SHERLOCK, the AI Triage Agent for AEGIS (Autonomous Expert for Governance, Intelligence & Swarming).
 
 Your role is to analyze IT support tickets and provide:
 1. Intelligent analysis of the issue
@@ -224,17 +229,22 @@ Your role is to analyze IT support tickets and provide:
 4. Category/subcategory suggestion with confidence score
 
 Always be specific, actionable, and reference relevant KB articles or past tickets.
-Respond in JSON format matching the expected schema.""",
+Respond in JSON format matching the expected schema."""
+                }],
                 messages=[
                     {
                         "role": "user",
-                        "content": context_prompt
+                        "content": [{"text": context_prompt}]
                     }
-                ]
+                ],
+                inferenceConfig={
+                    "maxTokens": 2048,
+                    "temperature": 0
+                }
             )
             
-            # Parse JSON response
-            response_text = response.content[0].text
+            # Parse response from Bedrock
+            response_text = response['output']['message']['content'][0]['text']
             
             # Extract JSON from response (handle markdown code blocks)
             if "```json" in response_text:
