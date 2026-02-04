@@ -16,8 +16,7 @@ from typing import TypedDict, Optional, List, Dict, Any, Literal
 from datetime import datetime
 
 from langgraph.graph import StateGraph, END
-from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+from langchain_aws import ChatBedrock
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from utils.pii_scrubber import scrub_incident
@@ -179,12 +178,17 @@ async def triage_llm_node(state: TriageState) -> TriageState:
         state["error"] = "Kill switch active"
         return state
     
-    # Select LLM based on config
-    llm_provider = os.getenv("LLM_PROVIDER", "anthropic")
-    if llm_provider == "anthropic":
-        llm = ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0)
-    else:
-        llm = ChatOpenAI(model="gpt-4o", temperature=0)
+    # Initialize AWS Bedrock LLM with bearer token
+    bedrock_model = os.getenv("BEDROCK_CLAUDE_SONNET_MODEL", "anthropic.claude-3-5-sonnet-20241022-v2:0")
+    bearer_token = os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+    
+    llm = ChatBedrock(
+        model_id=bedrock_model,
+        region_name=os.getenv("AWS_DEFAULT_REGION", "us-east-1"),
+        credentials_profile_name=None,
+        model_kwargs={"temperature": 0},
+        # Bearer token is passed via environment or boto3 session
+    )
     
     # Build context
     kb_context = "\n".join([

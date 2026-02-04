@@ -16,10 +16,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # LLM Configuration
-      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # AWS Bedrock Configuration
+      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
+      - BEDROCK_CLAUDE_SONNET_MODEL=${BEDROCK_CLAUDE_SONNET_MODEL:-anthropic.claude-3-5-sonnet-20241022-v2:0}
+      - AWS_TITAN_EMBEDDING_MODEL=${AWS_TITAN_EMBEDDING_MODEL:-amazon.titan-embed-text-v2:0}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
 
       # ServiceNow
       - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
@@ -56,10 +57,11 @@ services:
       dockerfile: docker/Dockerfile.api
     command: python workers/triage_worker.py
     environment:
-      # LLM Configuration
-      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # AWS Bedrock Configuration
+      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
+      - BEDROCK_CLAUDE_SONNET_MODEL=${BEDROCK_CLAUDE_SONNET_MODEL:-anthropic.claude-3-5-sonnet-20241022-v2:0}
+      - AWS_TITAN_EMBEDDING_MODEL=${AWS_TITAN_EMBEDDING_MODEL:-amazon.titan-embed-text-v2:0}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
 
       # ServiceNow
       - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
