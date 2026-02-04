@@ -1,8 +1,8 @@
 # AEGIS Docker Compose - LangGraph Pipeline Stack
 # Version: 2.1.0
 # Stack: FastAPI, LangGraph, Redis, ChromaDB, Admin Portal
-
-version: '3.8'
+#
+# Usage: docker-compose up -d (run from this directory)
 
 services:
   # ===========================================================================
@@ -10,7 +10,7 @@ services:
   # ===========================================================================
   aegis-api:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.api
     container_name: aegis-api
     ports:
@@ -53,7 +53,7 @@ services:
   # ===========================================================================
   aegis-worker:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile.api
     command: python workers/triage_worker.py
     environment:
@@ -84,7 +84,7 @@ services:
       - aegis-network
     restart: unless-stopped
     deploy:
-      replicas: 2 # Run 2 workers for parallel processing
+      replicas: 2
     volumes:
       - /var/log/aegis:/var/log/aegis
 
@@ -93,7 +93,7 @@ services:
   # ===========================================================================
   rag-service:
     build:
-      context: ./rag-service
+      context: ../rag-service
       dockerfile: Dockerfile
     container_name: aegis-rag
     ports:
@@ -138,11 +138,11 @@ services:
     image: redis/redis-stack:latest
     container_name: aegis-redis
     ports:
-      - "6379:6379" # Redis
-      - "8001:8001" # RedisInsight
+      - "6379:6379"
+      - "8001:8001"
     volumes:
       - redis-data:/data
-      - ./docker/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
     command: [ "redis-stack-server", "/usr/local/etc/redis/redis.conf" ]
     networks:
       - aegis-network
@@ -183,7 +183,7 @@ services:
   # ===========================================================================
   admin-portal:
     build:
-      context: ./admin-portal
+      context: ../admin-portal
       dockerfile: Dockerfile
     container_name: aegis-admin
     ports:
