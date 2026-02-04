@@ -243,6 +243,30 @@ async def receive_incident(incident: IncidentPayload):
     )
 
 
+# ServiceNow webhook alias - for Business Rule integration
+@app.post("/webhook/servicenow", response_model=TriageResponse)
+async def servicenow_webhook(payload: Dict[str, Any]):
+    """
+    ServiceNow Business Rule webhook endpoint.
+    Accepts raw ServiceNow payload and maps to IncidentPayload.
+    """
+    # Map ServiceNow fields to our model (handle both direct and .toString() formats)
+    incident = IncidentPayload(
+        number=str(payload.get("number", payload.get("sys_id", "UNKNOWN"))),
+        short_description=str(payload.get("short_description", "")),
+        description=str(payload.get("description", "")),
+        caller_id=str(payload.get("caller_id", "")) if payload.get("caller_id") else None,
+        category=str(payload.get("category", "")) if payload.get("category") else None,
+        subcategory=str(payload.get("subcategory", "")) if payload.get("subcategory") else None,
+        priority=str(payload.get("priority", "3")),
+        cmdb_ci=str(payload.get("cmdb_ci", "")) if payload.get("cmdb_ci") else None,
+        assignment_group=str(payload.get("assignment_group", "")) if payload.get("assignment_group") else None
+    )
+    
+    # Delegate to main incident handler
+    return await receive_incident(incident)
+
+
 @app.get("/triage/{triage_id}")
 async def get_triage_result(triage_id: str):
     """Get result of a triage operation."""
