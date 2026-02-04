@@ -7,11 +7,13 @@ Handles Storm Shield (vector-based), Kill Switch, and governance state.
 import os
 import json
 import logging
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple
 import redis
 import httpx
 from pydantic import BaseModel, Field
+from langchain_core.tools import BaseTool
 
 logger = logging.getLogger("aegis.redis_tools")
 
