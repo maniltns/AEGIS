@@ -73,7 +73,7 @@ services:
       - REDIS_PORT=6379
 
       # RAG Service
-      - RAG_SERVICE_URL=http://rag-service:8100
+      - RAG_SERVICE_URL=http://rag-service:8000
 
       # Teams
       - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
@@ -97,7 +97,7 @@ services:
       dockerfile: Dockerfile
     container_name: aegis-rag
     ports:
-      - "8100:8100"
+      - "8100:8000"
     environment:
       # AWS Bedrock Configuration
       - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
