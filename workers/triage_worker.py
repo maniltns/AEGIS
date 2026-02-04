@@ -21,14 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.triage_graph import process_incident
 
-# Configure logging
+# Configure logging (stdout only for Docker compatibility)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("/var/log/aegis/worker.log") if os.path.exists("/var/log/aegis") else logging.StreamHandler()
-    ]
+    handlers=[logging.StreamHandler()]
 )
 
 logger = logging.getLogger("aegis.worker")
