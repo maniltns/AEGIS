@@ -14,7 +14,7 @@ services:
       dockerfile: docker/Dockerfile.api
     container_name: aegis-api
     ports:
-      - "8000:8000"
+      - "8080:8000" # Host:Container
     environment:
       # AWS Bedrock Configuration
       - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
