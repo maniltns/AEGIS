@@ -734,6 +734,64 @@ async def get_stats():
     }
 
 
+class SearchRequest(BaseModel):
+    """Search request model"""
+    query: str
+    collection: str = "kb_articles"
+    top_k: int = 5
+
+
+@app.post("/search")
+async def search_documents(request: SearchRequest):
+    """
+    🔍 Simple vector search endpoint for triage worker.
+    
+    Request body:
+    {
+        "query": "search text",
+        "collection": "kb_articles" | "incidents" | "sop",
+        "top_k": 5
+    }
+    """
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not initialized")
+    
+    # Map collection names
+    collection_map = {
+        "kb_articles": "kb",
+        "kb": "kb",
+        "incidents": "ticket",
+        "tickets": "ticket",
+        "ticket": "ticket",
+        "sop": "sop"
+    }
+    
+    collection_name = collection_map.get(request.collection, "kb")
+    
+    try:
+        results = rag_service.vector_db.search_similar(
+            collection_name=collection_name,
+            query=request.query,
+            top_k=request.top_k
+        )
+        
+        # Format results
+        formatted = []
+        for r in results:
+            formatted.append({
+                "title": r.get("metadata", {}).get("title", "Untitled"),
+                "summary": r.get("content", "")[:300],
+                "score": r.get("score", 0),
+                "metadata": r.get("metadata", {})
+            })
+        
+        return {"results": formatted, "count": len(formatted)}
+        
+    except Exception as e:
+        logger.error(f"Search failed: {e}")
+        return {"results": [], "count": 0, "error": str(e)}
+
+
 # =============================================================================
 # Main Entry Point
 # =============================================================================
