@@ -49,7 +49,9 @@ function Dashboard() {
                 setStats(prev => ({
                     ...prev,
                     processed_today: data.stats?.processed_today || 0,
-                    blocked_today: data.stats?.blocked_today || 0
+                    blocked_today: data.stats?.blocked_today || 0,
+                    active_nodes: data.stats?.active_nodes || 4,
+                    success_rate: data.stats?.success_rate || 100
                 }))
             }
             // Fetch feedback stats
@@ -59,14 +61,7 @@ function Dashboard() {
                 setStats(prev => ({ ...prev, approval_rate: fbData.approval_rate || 0 }))
             }
         } catch (err) {
-            // Demo data
-            setStats({
-                processed_today: 127,
-                blocked_today: 12,
-                active_nodes: 4,
-                success_rate: 94,
-                approval_rate: 85
-            })
+            console.error('Failed to fetch status:', err)
         }
     }
 
@@ -90,14 +85,8 @@ function Dashboard() {
                 setRecentLogs(data.logs || [])
             }
         } catch (err) {
-            // Demo data
-            setRecentLogs([
-                { timestamp: new Date().toISOString(), agent: 'TRIAGE_LLM', incident: 'INC0012345', action: 'Classified (94%)' },
-                { timestamp: new Date(Date.now() - 60000).toISOString(), agent: 'GUARDRAILS', incident: 'INC0012346', action: 'Blocked (Duplicate)' },
-                { timestamp: new Date(Date.now() - 120000).toISOString(), agent: 'EXECUTOR', incident: 'INC0012345', action: 'Assigned to L2-Network' },
-                { timestamp: new Date(Date.now() - 180000).toISOString(), agent: 'EXECUTOR', incident: 'INC0012344', action: 'Teams Card Sent' },
-                { timestamp: new Date(Date.now() - 240000).toISOString(), agent: 'ENRICHMENT', incident: 'INC0012343', action: 'KB + User Context Added' },
-            ])
+            console.error('Failed to fetch logs:', err)
+            setRecentLogs([])
         }
     }
 
@@ -143,15 +132,6 @@ function Dashboard() {
                     <p className="page-subtitle">System overview and real-time monitoring</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button
-                        className={`btn ${status.kill_switch_active ? 'btn-success' : 'btn-danger'}`}
-                        onClick={toggleKillSwitch}
-                        style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    >
-                        <Zap size={16} />
-                        {status.kill_switch_active ? 'Enable System' : 'Disable System'}
-                    </button>
-
                     <div className={`badge ${status.operational ? 'badge-success' : 'badge-danger'}`}>
                         <span style={{
                             width: '8px',

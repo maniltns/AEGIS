@@ -68,20 +68,26 @@ function Settings() {
         }
 
         try {
-            await fetch('/api/governance/killswitch', {
+            const response = await fetch('/api/governance/killswitch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action,
-                    reason: 'Toggled from admin portal',
-                    operator: 'admin'
+                    reason: 'Toggled from admin portal settings',
+                    operator: 'admin@aegis.local'
                 })
             })
 
-            setSettings({ ...settings, killSwitch: !settings.killSwitch })
+            if (response.ok) {
+                // Update local state only on success
+                setSettings(prev => ({ ...prev, killSwitch: !prev.killSwitch }))
+            } else {
+                const err = await response.json()
+                alert(`Failed to toggle kill switch: ${err.detail || 'Unknown error'}`)
+            }
         } catch (err) {
-            // Toggle locally for demo
-            setSettings({ ...settings, killSwitch: !settings.killSwitch })
+            console.error(err)
+            alert('Error toggling kill switch. Check console/logs.')
         }
     }
 
