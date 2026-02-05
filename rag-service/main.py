@@ -725,15 +725,39 @@ app.add_middleware(
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
+    # Get collection stats from Redis
+    stats = {}
+    if rag_service:
+        try:
+            stats = rag_service.vector_db.get_collection_stats()
+        except Exception as e:
+            logger.warning(f"Could not get collection stats: {e}")
+    
     return {
         "status": "healthy",
         "service": "aegis-rag",
         "timestamp": datetime.utcnow().isoformat(),
         "collections": {
-            "kb": rag_service.vector_db.kb_collection.count() if rag_service else 0,
-            "tickets": rag_service.vector_db.tickets_collection.count() if rag_service else 0,
-            "sop": rag_service.vector_db.sop_collection.count() if rag_service else 0
+            "kb": stats.get("idx:kb", 0),
+            "tickets": stats.get("idx:tickets", 0),
+            "sop": stats.get("idx:sop", 0)
         }
+    }
+
+
+@app.get("/stats")
+async def get_stats():
+    """Get vector database statistics for KB GUI"""
+    stats = {}
+    if rag_service:
+        try:
+            stats = rag_service.vector_db.get_collection_stats()
+        except Exception as e:
+            logger.warning(f"Could not get stats: {e}")
+    
+    return {
+        "collections": stats,
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
