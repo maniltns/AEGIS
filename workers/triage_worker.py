@@ -188,11 +188,23 @@ class TriageWorker:
         self.redis.ltrim("logs:activity", 0, 999)
         
         # Update stats
-        self.redis.hincrby("stats:daily", datetime.utcnow().strftime("%Y-%m-%d"), 1)
-        
-        # Update processed count for today
-        today = datetime.utcnow().strftime("%Y%m%d")
-        self.redis.incr(f"stats:processed:{today}")
+        try:
+            today = datetime.utcnow().strftime("%Y%m%d")
+            
+            # Global daily stats
+            try:
+                self.redis.hincrby("stats:daily", datetime.utcnow().strftime("%Y-%m-%d"), 1)
+            except Exception as e:
+                logger.error(f"Failed to update global stats: {e}")
+
+            # Real-time dashboard stats
+            if status == "blocked":
+                self.redis.incr(f"stats:blocked:{today}")
+            else:
+                self.redis.incr(f"stats:processed:{today}")
+                
+        except Exception as e:
+            logger.error(f"Failed to update dashboard stats: {e}")
     
     def _get_retry_count(self, raw_item: str) -> int:
         """Get retry count from item metadata."""
