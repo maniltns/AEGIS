@@ -83,13 +83,15 @@ services:
     networks:
       - aegis-network
     restart: unless-stopped
+    healthcheck:
+      disable: true
     deploy:
       replicas: 2
     volumes:
       - /var/log/aegis:/var/log/aegis
 
   # ===========================================================================
-  # RAG Service (FastAPI + ChromaDB + Bedrock)
+  # RAG Service (FastAPI + Redis + Bedrock)
   # ===========================================================================
   rag-service:
     build:
@@ -105,28 +107,12 @@ services:
       - AWS_TITAN_EMBEDDING_MODEL=${AWS_TITAN_EMBEDDING_MODEL:-amazon.titan-embed-text-v2:0}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
 
-      # ChromaDB
-      - CHROMA_HOST=chromadb
-      - CHROMA_PORT=8200
-    depends_on:
-      - chromadb
-    networks:
-      - aegis-network
-    restart: unless-stopped
+      # Redis Vector DB
+      - REDIS_URL=redis://redis:6379
 
-  # ===========================================================================
-  # ChromaDB Vector Database
-  # ===========================================================================
-  chromadb:
-    image: chromadb/chroma:latest
-    container_name: aegis-chromadb
-    ports:
-      - "8200:8000"
-    volumes:
-      - chroma-data:/chroma/chroma
-    environment:
-      - ANONYMIZED_TELEMETRY=false
-      - ALLOW_RESET=true
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - aegis-network
     restart: unless-stopped
@@ -208,5 +194,3 @@ networks:
 volumes:
   redis-data:
     name: aegis-redis-data
-  chroma-data:
-    name: aegis-chroma-data
