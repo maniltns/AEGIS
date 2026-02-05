@@ -153,11 +153,11 @@ services:
     entrypoint: >
       sh -c "
         echo 'Initializing Redis governance keys...'
-        redis-cli -h redis SET gov:killswitch false
-        redis-cli -h redis SET gov:mode assist
-        redis-cli -h redis SET gov:threshold:auto_assign 85
-        redis-cli -h redis SET gov:threshold:auto_categorize 80
-        redis-cli -h redis SET gov:threshold:auto_remediate 95
+        redis-cli -h redis SET gov:killswitch true NX
+        redis-cli -h redis SET gov:mode assist NX
+        redis-cli -h redis SET gov:threshold:auto_assign 85 NX
+        redis-cli -h redis SET gov:threshold:auto_categorize 80 NX
+        redis-cli -h redis SET gov:threshold:auto_remediate 95 NX
         echo 'Initializing Redis queue...'
         redis-cli -h redis PING
         echo 'Redis initialization complete!'

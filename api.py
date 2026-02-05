@@ -321,9 +321,8 @@ async def receive_incident(incident: IncidentPayload):
     # Push to Redis queue (reliable, persistent)
     queue_position = redis_client.lpush(TRIAGE_QUEUE, json.dumps(incident_data))
     
-    # Increment stats
-    today = datetime.utcnow().strftime("%Y%m%d")
-    redis_client.incr(f"stats:processed:{today}")
+    # Stats are incremented by the worker upon processing
+    # redis_client.incr(f"stats:processed:{today}")
     
     logger.info(f"Queued {incident.number} at position {queue_position}")
     
