@@ -6,7 +6,8 @@ import {
     ScrollText,
     Settings,
     LogOut,
-    Shield
+    Shield,
+    Database
 } from 'lucide-react'
 
 function Sidebar({ user, onLogout }) {
@@ -15,6 +16,7 @@ function Sidebar({ user, onLogout }) {
         { path: '/agents', icon: Bot, label: 'Pipeline' },
         { path: '/connectors', icon: Plug, label: 'Connectors' },
         { path: '/logs', icon: ScrollText, label: 'Logs' },
+        { path: '/knowledge-base', icon: Database, label: 'Knowledge Base' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ]
 

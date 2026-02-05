@@ -391,47 +391,30 @@ def build_work_notes(state: TriageState) -> str:
 
 
 async def send_teams_notification(state: TriageState) -> None:
-    """Send Teams adaptive card notification."""
-    import httpx
-    
-    webhook_url = os.getenv("TEAMS_WEBHOOK_URL")
-    if not webhook_url:
-        logger.warning("[TEAMS] No webhook URL configured")
-        return
+    """Send Teams adaptive card notification with feedback buttons."""
+    from agents.tools.teams_tools import send_enhanced_triage_card
     
     classification = state.get("classification", {})
     
-    card = {
-        "type": "message",
-        "attachments": [{
-            "contentType": "application/vnd.microsoft.card.adaptive",
-            "content": {
-                "type": "AdaptiveCard",
-                "version": "1.4",
-                "body": [
-                    {
-                        "type": "TextBlock",
-                        "text": f"🛡️ AEGIS: {state['incident_number']}",
-                        "weight": "bolder",
-                        "size": "medium"
-                    },
-                    {
-                        "type": "FactSet",
-                        "facts": [
-                            {"title": "Issue", "value": state.get("scrubbed_short_description", "")[:100]},
-                            {"title": "Category", "value": classification.get("category", "N/A")},
-                            {"title": "Priority", "value": f"P{classification.get('priority', '3')}"},
-                            {"title": "Assignment", "value": classification.get("assignment_group", "N/A")},
-                            {"title": "Confidence", "value": f"{state.get('confidence', 0)*100:.0f}%"}
-                        ]
-                    }
-                ]
-            }
-        }]
-    }
+    # Get triage_id for feedback tracking
+    triage_id = state.get("triage_id", f"TRG{state['incident_number']}")
     
-    async with httpx.AsyncClient() as client:
-        await client.post(webhook_url, json=card)
+    try:
+        await send_enhanced_triage_card(
+            triage_id=triage_id,
+            incident_number=state["incident_number"],
+            short_description=state.get("scrubbed_short_description", state.get("short_description", "")),
+            classification=classification,
+            reasoning=state.get("reasoning", ""),
+            kb_articles=state.get("kb_articles", []),
+            user_info=state.get("user_info"),
+            ticket_history=len(state.get("user_info", {}).get("past_tickets", [])) if state.get("user_info") else 0,
+            servicenow_instance=os.getenv("SERVICENOW_INSTANCE"),
+            api_base_url=os.getenv("AEGIS_API_URL", "http://localhost:8080")
+        )
+        logger.info(f"[TEAMS] Enhanced card sent for {state['incident_number']}")
+    except Exception as e:
+        logger.error(f"[TEAMS] Failed to send notification: {e}")
 
 
 # =============================================================================

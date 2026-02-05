@@ -6,7 +6,7 @@ Custom RAG (Retrieval Augmented Generation) service for AEGIS.
 Architecture:
 - Embedding Model: Amazon Titan Text Embeddings V2
 - Reasoning Model: Claude Sonnet 4.5 (Anthropic)
-- Vector Database: ChromaDB (embedded) / FAISS
+- Vector Database: Redis Stack with RediSearch (Enterprise-grade)
 - API Framework: FastAPI
 - Deployment: AWS EC2 (Docker)
 
@@ -16,14 +16,14 @@ Date: January 28, 2026
 
 import os
 import json
+import time
 import hashlib
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from contextlib import asynccontextmanager
 
 import boto3
-import chromadb
-from chromadb.config import Settings
+import redis
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -344,34 +344,67 @@ Respond with a JSON object containing:
 # =============================================================================
 
 class VectorDBManager:
-    """ChromaDB Vector Database Manager"""
+    """Redis Stack Vector Database Manager (Enterprise-grade replacement for ChromaDB)"""
     
     def __init__(self, embeddings: TitanEmbeddings):
         self.embeddings = embeddings
+        self.vector_dim = 1024  # Titan V2 embedding dimension
         
-        # Initialize ChromaDB with persistence
-        self.client = chromadb.PersistentClient(
-            path=Config.CHROMA_PERSIST_DIR,
-            settings=Settings(anonymized_telemetry=False)
-        )
+        # Initialize Redis connection
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+        self.redis = redis.from_url(redis_url, decode_responses=False)
         
-        # Initialize collections
-        self.kb_collection = self.client.get_or_create_collection(
-            name=Config.COLLECTION_KB,
-            metadata={"description": "Knowledge Base Articles"}
-        )
-        self.tickets_collection = self.client.get_or_create_collection(
-            name=Config.COLLECTION_TICKETS,
-            metadata={"description": "Historical Ticket Data"}
-        )
-        self.sop_collection = self.client.get_or_create_collection(
-            name=Config.COLLECTION_SOP,
-            metadata={"description": "Standard Operating Procedures"}
-        )
+        # Collection name to index name mapping
+        self.collections = {
+            Config.COLLECTION_KB: "idx:kb",
+            Config.COLLECTION_TICKETS: "idx:tickets", 
+            Config.COLLECTION_SOP: "idx:sop",
+            "kb": "idx:kb",
+            "ticket": "idx:tickets",
+            "sop": "idx:sop",
+            "kb_articles": "idx:kb",
+            "incidents": "idx:tickets"
+        }
         
-        logger.info(f"Initialized VectorDB with {self.kb_collection.count()} KB articles, "
-                   f"{self.tickets_collection.count()} tickets, "
-                   f"{self.sop_collection.count()} SOPs")
+        # Initialize vector indices
+        self._ensure_indices()
+        
+        logger.info(f"Initialized Redis VectorDB with indices: {list(set(self.collections.values()))}")
+    
+    def _ensure_indices(self):
+        """Create vector indices if they don't exist"""
+        index_configs = [
+            ("idx:kb", "kb:", "Knowledge Base Articles"),
+            ("idx:tickets", "tickets:", "Historical Tickets"),
+            ("idx:sop", "sop:", "Standard Operating Procedures")
+        ]
+        
+        for index_name, prefix, description in index_configs:
+            try:
+                # Check if index exists
+                self.redis.execute_command("FT.INFO", index_name)
+                logger.debug(f"Index {index_name} already exists")
+            except redis.ResponseError:
+                # Create index with vector field
+                try:
+                    self.redis.execute_command(
+                        "FT.CREATE", index_name,
+                        "ON", "HASH",
+                        "PREFIX", "1", prefix,
+                        "SCHEMA",
+                        "content", "TEXT",
+                        "doc_id", "TAG",
+                        "title", "TEXT",
+                        "category", "TAG",
+                        "created_at", "NUMERIC",
+                        "embedding", "VECTOR", "HNSW", "6",
+                        "TYPE", "FLOAT32",
+                        "DIM", str(self.vector_dim),
+                        "DISTANCE_METRIC", "COSINE"
+                    )
+                    logger.info(f"Created vector index: {index_name}")
+                except redis.ResponseError as e:
+                    logger.warning(f"Could not create index {index_name}: {e}")
     
     def add_document(
         self,
@@ -382,20 +415,41 @@ class VectorDBManager:
     ) -> str:
         """Add a document to a collection"""
         
-        collection = self._get_collection(collection_name)
+        # Get prefix for collection
+        prefix_map = {
+            "kb": "kb:", Config.COLLECTION_KB: "kb:",
+            "ticket": "tickets:", Config.COLLECTION_TICKETS: "tickets:",
+            "sop": "sop:", Config.COLLECTION_SOP: "sop:"
+        }
+        prefix = prefix_map.get(collection_name, "kb:")
+        
+        # Generate embedding
         embedding = self.embeddings.embed(content)
         
-        # Generate unique ID
+        # Generate unique key
         embed_id = hashlib.md5(f"{doc_id}:{content[:100]}".encode()).hexdigest()
+        key = f"{prefix}{embed_id}"
         
-        collection.add(
-            ids=[embed_id],
-            embeddings=[embedding],
-            documents=[content],
-            metadatas=[metadata]
-        )
+        # Store in Redis as hash with vector field
+        import struct
+        embedding_bytes = struct.pack(f'{len(embedding)}f', *embedding)
         
-        logger.info(f"Added document {doc_id} to {collection_name}")
+        self.redis.hset(key, mapping={
+            "content": content,
+            "doc_id": doc_id,
+            "title": metadata.get("title", ""),
+            "category": metadata.get("category", ""),
+            "kb_number": metadata.get("kb_number", ""),
+            "sys_id": metadata.get("sys_id", ""),
+            "created_at": int(time.time()),
+            "embedding": embedding_bytes
+        })
+        
+        # Set TTL (90 days for tickets, no expiry for KB/SOP)
+        if "tickets" in prefix:
+            self.redis.expire(key, 86400 * 90)
+        
+        logger.info(f"Added document {doc_id} to {collection_name} as {key}")
         return embed_id
     
     def search_similar(
@@ -404,43 +458,92 @@ class VectorDBManager:
         query: str,
         top_k: int = None
     ) -> List[Dict]:
-        """Search for similar documents"""
+        """Search for similar documents using Redis vector search"""
         
-        collection = self._get_collection(collection_name)
+        index_name = self.collections.get(collection_name)
+        if not index_name:
+            raise ValueError(f"Unknown collection: {collection_name}")
+        
+        # Generate query embedding
         query_embedding = self.embeddings.embed(query)
         
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k or Config.TOP_K_RESULTS,
-            include=["documents", "metadatas", "distances"]
-        )
+        import struct
+        query_bytes = struct.pack(f'{len(query_embedding)}f', *query_embedding)
         
-        # Format results
-        similar_docs = []
-        if results['documents'] and results['documents'][0]:
-            for i, doc in enumerate(results['documents'][0]):
-                # Convert distance to similarity score (1 - distance for cosine)
-                score = 1 - results['distances'][0][i] if results['distances'] else 0
-                
-                if score >= Config.SIMILARITY_THRESHOLD:
-                    similar_docs.append({
-                        "content": doc,
-                        "metadata": results['metadatas'][0][i] if results['metadatas'] else {},
-                        "score": score
-                    })
+        k = top_k or Config.TOP_K_RESULTS
         
-        return similar_docs
+        try:
+            # Execute KNN vector search
+            results = self.redis.execute_command(
+                "FT.SEARCH", index_name,
+                f"*=>[KNN {k} @embedding $vec AS score]",
+                "PARAMS", "2", "vec", query_bytes,
+                "SORTBY", "score",
+                "RETURN", "5", "content", "doc_id", "title", "category", "score",
+                "DIALECT", "2"
+            )
+            
+            # Parse results
+            similar_docs = []
+            if results and len(results) > 1:
+                # Results format: [count, key1, [field, value, ...], key2, ...]
+                i = 1
+                while i < len(results):
+                    if i + 1 < len(results):
+                        fields = results[i + 1]
+                        doc = {}
+                        score = 0
+                        
+                        for j in range(0, len(fields), 2):
+                            field_name = fields[j].decode() if isinstance(fields[j], bytes) else fields[j]
+                            field_val = fields[j + 1].decode() if isinstance(fields[j + 1], bytes) else fields[j + 1]
+                            
+                            if field_name == "score":
+                                # Redis returns distance, convert to similarity (1 - distance for cosine)
+                                score = 1 - float(field_val)
+                            else:
+                                doc[field_name] = field_val
+                        
+                        if score >= Config.SIMILARITY_THRESHOLD:
+                            similar_docs.append({
+                                "content": doc.get("content", ""),
+                                "metadata": {
+                                    "doc_id": doc.get("doc_id", ""),
+                                    "title": doc.get("title", ""),
+                                    "category": doc.get("category", ""),
+                                    "number": doc.get("doc_id", ""),
+                                    "short_description": doc.get("title", "")
+                                },
+                                "score": score
+                            })
+                    i += 2
+            
+            return similar_docs
+            
+        except redis.ResponseError as e:
+            logger.error(f"Vector search failed: {e}")
+            return []
+    
+    def get_collection_stats(self) -> Dict[str, int]:
+        """Get document counts for each collection"""
+        stats = {}
+        for index_name in set(self.collections.values()):
+            try:
+                info = self.redis.execute_command("FT.INFO", index_name)
+                # Parse info response for num_docs
+                for i, v in enumerate(info):
+                    if isinstance(v, bytes) and v.decode() == "num_docs":
+                        stats[index_name] = int(info[i + 1])
+                        break
+            except:
+                stats[index_name] = 0
+        return stats
     
     def _get_collection(self, name: str):
-        """Get collection by name"""
-        if name == "kb" or name == Config.COLLECTION_KB:
-            return self.kb_collection
-        elif name == "ticket" or name == Config.COLLECTION_TICKETS:
-            return self.tickets_collection
-        elif name == "sop" or name == Config.COLLECTION_SOP:
-            return self.sop_collection
-        else:
+        """Get collection index name (for compatibility)"""
+        if name not in self.collections:
             raise ValueError(f"Unknown collection: {name}")
+        return self.collections[name]
 
 
 # =============================================================================

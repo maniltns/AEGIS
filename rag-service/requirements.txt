@@ -10,11 +10,11 @@ pydantic==2.5.3
 boto3==1.34.25
 botocore==1.34.25
 
-# NumPy (pin to <2.0 for ChromaDB compatibility)
+# NumPy (for vector operations)
 numpy<2.0
 
-# Vector Database
-chromadb==0.4.22
+# Vector Database (Redis Stack with RediSearch)
+redis>=5.0.0
 
 # Additional dependencies
 python-multipart==0.0.6

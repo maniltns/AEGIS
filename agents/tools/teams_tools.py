@@ -238,3 +238,154 @@ async def request_approval(
     except Exception as e:
         logger.error(f"Failed to send approval request: {e}")
         return False
+
+
+async def send_enhanced_triage_card(
+    triage_id: str,
+    incident_number: str,
+    short_description: str,
+    classification: dict,
+    reasoning: str,
+    kb_articles: List[dict] = None,
+    user_info: dict = None,
+    ticket_history: int = 0,
+    servicenow_instance: str = None,
+    api_base_url: str = None
+) -> bool:
+    """
+    Send enhanced adaptive card with detailed analysis and feedback buttons.
+    
+    Args:
+        triage_id: Triage ID for feedback tracking
+        incident_number: Incident number
+        short_description: Issue description
+        classification: Classification dict with category, priority, assignment_group
+        reasoning: AI reasoning text
+        kb_articles: List of relevant KB articles (top 5)
+        user_info: Caller information
+        ticket_history: Number of past tickets
+        servicenow_instance: ServiceNow instance URL
+        api_base_url: AEGIS API base URL for feedback
+    
+    Returns:
+        True if sent successfully
+    """
+    client = TeamsWebhookClient()
+    
+    # Extract classification details
+    category = classification.get("category", "Unknown")
+    priority = classification.get("priority", "3")
+    assignment_group = classification.get("assignment_group", "L1-Helpdesk")
+    confidence = classification.get("confidence", 0)
+    
+    # Priority mapping
+    priority_colors = {
+        "1": "D32F2F", "2": "FF9800", "3": "FFC107", "4": "4CAF50", "5": "9E9E9E"
+    }
+    
+    confidence_pct = int(confidence * 100) if confidence <= 1 else int(confidence)
+    
+    # Build user info text
+    user_text = "Unknown"
+    if user_info:
+        user_name = user_info.get("name", "Unknown")
+        user_type = "VIP" if user_info.get("vip") else "External" if user_info.get("external") else "Internal"
+        user_text = f"{user_name} ({user_type})"
+    
+    # Build KB articles section
+    kb_text = "No matching articles"
+    if kb_articles and len(kb_articles) > 0:
+        kb_lines = []
+        snow_url = servicenow_instance or os.getenv("SERVICENOW_INSTANCE", "")
+        for i, kb in enumerate(kb_articles[:5], 1):
+            kb_number = kb.get("number", kb.get("title", f"KB{i}"))
+            kb_title = kb.get("title", kb.get("short_description", ""))[:50]
+            if snow_url:
+                kb_lines.append(f"{i}. [{kb_number}]({snow_url}/kb_view.do?sys_kb_id={kb.get('sys_id', '')}) - {kb_title}")
+            else:
+                kb_lines.append(f"{i}. {kb_number} - {kb_title}")
+        kb_text = "\\n".join(kb_lines)
+    
+    # Parse reasoning into sections
+    assessment = reasoning[:200] if reasoning else "No assessment available"
+    root_cause = ""
+    action = ""
+    
+    if reasoning:
+        lines = reasoning.split(".")
+        if len(lines) > 1:
+            assessment = lines[0] + "."
+            root_cause = lines[1] + "." if len(lines) > 1 else ""
+            action = ". ".join(lines[2:])[:150] if len(lines) > 2 else ""
+    
+    # ServiceNow link
+    snow_instance = servicenow_instance or os.getenv("SERVICENOW_INSTANCE", "")
+    incident_link = f"{snow_instance}/incident.do?sysparm_query=number={incident_number}" if snow_instance else "#"
+    
+    # API URL for feedback
+    api_url = api_base_url or os.getenv("AEGIS_API_URL", "http://localhost:8080")
+    
+    card = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": priority_colors.get(str(priority), "0078D7"),
+        "summary": f"Analysis: {incident_number}",
+        "sections": [
+            {
+                "activityTitle": f"🔍 Analysis: {incident_number}",
+                "facts": [
+                    {"name": "User", "value": user_text},
+                    {"name": "Issue", "value": short_description[:80]},
+                    {"name": "Priority", "value": f"{priority} / 5"},
+                    {"name": "History", "value": f"{ticket_history} tickets" if ticket_history else "No history"},
+                ],
+                "markdown": True
+            },
+            {
+                "activityTitle": "📋 Analysis",
+                "text": f"• **Assessment:** {assessment}\\n\\n• **Root Cause:** {root_cause}\\n\\n• **Action:** {action if action else assignment_group}",
+                "markdown": True
+            },
+            {
+                "activityTitle": "📚 Suggested KB Articles",
+                "text": kb_text,
+                "markdown": True
+            }
+        ],
+        "potentialAction": [
+            {
+                "@type": "OpenUri",
+                "name": f"View {incident_number}",
+                "targets": [{"os": "default", "uri": incident_link}]
+            },
+            {
+                "@type": "HttpPOST",
+                "name": "👍 Helpful",
+                "target": f"{api_url}/feedback/{triage_id}",
+                "body": json.dumps({
+                    "feedback": "positive",
+                    "incident_number": incident_number
+                }),
+                "headers": [{"name": "Content-Type", "value": "application/json"}]
+            },
+            {
+                "@type": "HttpPOST",
+                "name": "👎 Not Helpful",
+                "target": f"{api_url}/feedback/{triage_id}",
+                "body": json.dumps({
+                    "feedback": "negative",
+                    "incident_number": incident_number
+                }),
+                "headers": [{"name": "Content-Type", "value": "application/json"}]
+            }
+        ]
+    }
+    
+    try:
+        success = await client.send_message(card)
+        if success:
+            logger.info(f"Enhanced triage card sent for {incident_number}")
+        return success
+    except Exception as e:
+        logger.error(f"Failed to send enhanced triage card: {e}")
+        return False

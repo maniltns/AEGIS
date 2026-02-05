@@ -15,7 +15,8 @@ function Dashboard() {
         processed_today: 0,
         blocked_today: 0,
         active_nodes: 4,
-        success_rate: 94
+        success_rate: 94,
+        approval_rate: 0
     })
     const [status, setStatus] = useState({
         operational: true,
@@ -23,6 +24,8 @@ function Dashboard() {
         kill_switch_active: false
     })
     const [recentLogs, setRecentLogs] = useState([])
+    const [showFeedback, setShowFeedback] = useState(false)
+    const [feedbackDetails, setFeedbackDetails] = useState([])
 
     useEffect(() => {
         fetchStatus()
@@ -30,6 +33,12 @@ function Dashboard() {
         const interval = setInterval(fetchStatus, 30000)
         return () => clearInterval(interval)
     }, [])
+
+    useEffect(() => {
+        if (showFeedback) {
+            fetchFeedbackDetails()
+        }
+    }, [showFeedback])
 
     const fetchStatus = async () => {
         try {
@@ -43,14 +52,33 @@ function Dashboard() {
                     blocked_today: data.stats?.blocked_today || 0
                 }))
             }
+            // Fetch feedback stats
+            const fbResponse = await fetch('/api/feedback/stats')
+            if (fbResponse.ok) {
+                const fbData = await fbResponse.json()
+                setStats(prev => ({ ...prev, approval_rate: fbData.approval_rate || 0 }))
+            }
         } catch (err) {
             // Demo data
             setStats({
                 processed_today: 127,
                 blocked_today: 12,
                 active_nodes: 4,
-                success_rate: 94
+                success_rate: 94,
+                approval_rate: 85
             })
+        }
+    }
+
+    const fetchFeedbackDetails = async () => {
+        try {
+            const response = await fetch('/api/feedback/details?limit=10')
+            if (response.ok) {
+                const data = await response.json()
+                setFeedbackDetails(data.feedback || [])
+            }
+        } catch (err) {
+            setFeedbackDetails([])
         }
     }
 
@@ -158,6 +186,16 @@ function Dashboard() {
                     <div className="stat-card-value">{stats.success_rate}%</div>
                     <div className="stat-card-label">Success Rate</div>
                 </div>
+
+                <div className="stat-card" style={{ cursor: 'pointer' }} onClick={() => setShowFeedback(true)}>
+                    <div className="stat-card-header">
+                        <div className="stat-card-icon" style={{ background: stats.approval_rate >= 80 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(251, 146, 60, 0.15)' }}>
+                            <CheckCircle size={22} style={{ color: stats.approval_rate >= 80 ? '#22c55e' : '#f97316' }} />
+                        </div>
+                    </div>
+                    <div className="stat-card-value">{stats.approval_rate || 0}%</div>
+                    <div className="stat-card-label">👍 Approval Rate</div>
+                </div>
             </div>
 
             <div className="card">
@@ -195,6 +233,52 @@ function Dashboard() {
                     </table>
                 </div>
             </div>
+
+            {/* Feedback Drill-down Modal */}
+            {showFeedback && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                }} onClick={() => setShowFeedback(false)}>
+                    <div className="modal-content" style={{
+                        background: 'var(--bg-card)', borderRadius: '12px', padding: '24px', width: '600px', maxHeight: '80vh', overflow: 'auto'
+                    }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                            <h3 style={{ margin: 0 }}>👍 Feedback Details</h3>
+                            <button className="btn btn-secondary" onClick={() => setShowFeedback(false)}>✕</button>
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
+                            <span className="badge badge-success" style={{ marginRight: '8px' }}>
+                                👍 {feedbackDetails.filter(f => f.feedback === 'positive').length}
+                            </span>
+                            <span className="badge badge-danger">
+                                👎 {feedbackDetails.filter(f => f.feedback === 'negative').length}
+                            </span>
+                        </div>
+                        <table className="table" style={{ fontSize: '14px' }}>
+                            <thead>
+                                <tr>
+                                    <th>Incident</th>
+                                    <th>Classification</th>
+                                    <th>Feedback</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {feedbackDetails.map((fb, i) => (
+                                    <tr key={i}>
+                                        <td style={{ fontFamily: 'monospace' }}>{fb.incident_number}</td>
+                                        <td>{fb.classification}</td>
+                                        <td>{fb.feedback === 'positive' ? '👍' : '👎'}</td>
+                                    </tr>
+                                ))}
+                                {feedbackDetails.length === 0 && (
+                                    <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No feedback yet</td></tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

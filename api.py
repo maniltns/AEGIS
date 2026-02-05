@@ -161,36 +161,127 @@ async def health_check():
 
 
 @app.get("/status")
-async def get_status():
-    """Get AEGIS operational status."""
-    kill_switch = redis_client.get("gov:killswitch")
-    mode = redis_client.get("gov:mode") or "assist"
+async def get_system_status():
+    """Get system operational status for dashboard."""
+    try:
+        redis_client.ping()
+        operational = True
+    except:
+        operational = False
     
-    # Get recent stats
+    # Get kill switch state (true = system enabled)
+    kill_switch_raw = redis_client.get("gov:killswitch")
+    kill_switch_active = kill_switch_raw != b"true" if kill_switch_raw else False
+    
+    # Get operating mode
+    mode = redis_client.get("gov:mode")
+    mode = mode.decode() if mode else "assist"
+    
+    # Get today's stats
     today = datetime.utcnow().strftime("%Y%m%d")
-    processed_today = redis_client.get(f"stats:processed:{today}") or "0"
-    blocked_today = redis_client.get(f"stats:blocked:{today}") or "0"
+    processed_today = redis_client.get(f"stats:processed:{today}")
+    blocked_today = redis_client.get(f"stats:blocked:{today}")
     
-    # Queue stats
-    queue_len = redis_client.llen(TRIAGE_QUEUE)
-    processing_len = redis_client.llen("aegis:queue:processing")
-    dead_letter_len = redis_client.llen("aegis:queue:dead_letter")
+    # Get feedback stats
+    positive = redis_client.get("stats:feedback:positive")
+    negative = redis_client.get("stats:feedback:negative")
     
     return {
-        "operational": kill_switch == "true",
+        "operational": operational and not kill_switch_active,
         "mode": mode,
-        "kill_switch_active": kill_switch == "false",
+        "kill_switch_active": kill_switch_active,
         "stats": {
-            "processed_today": int(processed_today),
-            "blocked_today": int(blocked_today)
-        },
-        "queue": {
-            "pending": queue_len,
-            "processing": processing_len,
-            "dead_letter": dead_letter_len
-        },
-        "timestamp": datetime.utcnow().isoformat()
+            "processed_today": int(processed_today) if processed_today else 0,
+            "blocked_today": int(blocked_today) if blocked_today else 0,
+            "feedback_positive": int(positive) if positive else 0,
+            "feedback_negative": int(negative) if negative else 0
+        }
     }
+
+
+# =============================================================================
+# FEEDBACK ENDPOINTS
+# =============================================================================
+
+class FeedbackPayload(BaseModel):
+    """Feedback from Teams card."""
+    feedback: str = Field(..., description="positive or negative")
+    incident_number: str = Field(..., description="Incident number")
+    user: Optional[str] = Field(None, description="User who gave feedback")
+
+
+@app.post("/feedback/{triage_id}")
+async def submit_feedback(triage_id: str, payload: FeedbackPayload):
+    """Store feedback from Teams card thumbs up/down."""
+    
+    # Get original triage result
+    result_raw = redis_client.get(f"triage:result:{triage_id}")
+    result = json.loads(result_raw) if result_raw else {}
+    
+    # Store feedback
+    feedback_data = {
+        "triage_id": triage_id,
+        "incident_number": payload.incident_number,
+        "feedback": payload.feedback,
+        "classification": result.get("classification", {}).get("category", "Unknown"),
+        "recommendation": result.get("classification", {}).get("assignment_group", "Unknown"),
+        "confidence": result.get("confidence", 0),
+        "feedback_time": datetime.utcnow().isoformat(),
+        "feedback_by": payload.user
+    }
+    
+    redis_client.set(f"feedback:{triage_id}", json.dumps(feedback_data))
+    redis_client.expire(f"feedback:{triage_id}", 86400 * 90)  # 90 days
+    
+    # Update counters
+    if payload.feedback == "positive":
+        redis_client.incr("stats:feedback:positive")
+    else:
+        redis_client.incr("stats:feedback:negative")
+    
+    # Daily stats
+    today = datetime.utcnow().strftime("%Y%m%d")
+    redis_client.incr(f"stats:feedback:daily:{today}:{payload.feedback}")
+    
+    # Add to feedback list for drill-down
+    redis_client.lpush("feedback:history", json.dumps(feedback_data))
+    redis_client.ltrim("feedback:history", 0, 999)  # Keep last 1000
+    
+    logger.info(f"Feedback received for {triage_id}: {payload.feedback}")
+    
+    return {"success": True, "message": "Feedback recorded"}
+
+
+@app.get("/feedback/stats")
+async def get_feedback_stats():
+    """Get feedback statistics for dashboard."""
+    positive = redis_client.get("stats:feedback:positive")
+    negative = redis_client.get("stats:feedback:negative")
+    
+    pos = int(positive) if positive else 0
+    neg = int(negative) if negative else 0
+    total = pos + neg
+    
+    return {
+        "positive": pos,
+        "negative": neg,
+        "total": total,
+        "approval_rate": round(pos / total * 100, 1) if total > 0 else 0
+    }
+
+
+@app.get("/feedback/details")
+async def get_feedback_details(limit: int = 20):
+    """Get recent feedback for drill-down."""
+    raw_feedback = redis_client.lrange("feedback:history", 0, limit - 1)
+    
+    feedback_list = []
+    for item in raw_feedback:
+        try:
+            feedback_list.append(json.loads(item))
+        except:
+            pass
+    return {"feedback": feedback_list, "count": len(feedback_list)}
 
 
 # =============================================================================

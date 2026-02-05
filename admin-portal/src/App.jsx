@@ -6,6 +6,7 @@ import Agents from './pages/Agents'
 import Connectors from './pages/Connectors'
 import Logs from './pages/Logs'
 import Settings from './pages/Settings'
+import KnowledgeBase from './pages/KnowledgeBase'
 import Login from './pages/Login'
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
                         <Route path="/agents" element={<Agents />} />
                         <Route path="/connectors" element={<Connectors />} />
                         <Route path="/logs" element={<Logs />} />
+                        <Route path="/knowledge-base" element={<KnowledgeBase />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
