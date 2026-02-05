@@ -141,7 +141,7 @@ services:
       - "6379:6379"
       - "8501:8001" # RedisInsight
     volumes:
-      - redis-data:/data
+      - redis-data:/var/lib/redis-stack
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     command: [ "redis-stack-server", "/usr/local/etc/redis/redis.conf" ]
     networks:
