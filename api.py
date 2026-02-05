@@ -756,8 +756,8 @@ async def get_connectors():
         "features": ["Governance", "Queue", "Storm Shield", "Caching"]
     })
     
-    # RAG Service / ChromaDB
-    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8100")
+    # RAG Service / Redis
+    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8000")
     rag_status = "disconnected"
     rag_message = "Not reachable"
     
@@ -777,7 +777,7 @@ async def get_connectors():
     connectors.append({
         "id": "rag",
         "name": "RAG Service",
-        "description": "Knowledge retrieval with ChromaDB and Claude reasoning",
+        "description": "Knowledge retrieval with Redis Vector Search and Claude reasoning",
         "logo": "🧠",
         "status": rag_status,
         "message": rag_message,

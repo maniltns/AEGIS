@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Check, AlertCircle, RefreshCw, Wifi, WifiOff, Settings } from 'lucide-react'
+import { Check, AlertCircle, RefreshCw, Wifi, WifiOff, Settings, Plus } from 'lucide-react'
 import api from '../api/client'
 
 function Connectors() {
@@ -38,6 +38,10 @@ function Connectors() {
     const openConfig = (connector) => {
         setSelectedConnector(connector)
         setShowConfigModal(true)
+    }
+
+    const handleAddConnector = () => {
+        alert("Connector Marketplace coming soon! \n\nSupported integrations:\n- ServiceNow\n- Jira\n- Slack\n- PagerDuty")
     }
 
     const getStatusIcon = (status) => {
@@ -82,15 +86,25 @@ function Connectors() {
                     <h1 className="page-title">Connectors</h1>
                     <p className="page-subtitle">Real-time integration status</p>
                 </div>
-                <button
-                    className="btn btn-secondary"
-                    onClick={() => fetchConnectors(true)}
-                    disabled={refreshing}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-                >
-                    <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
-                    Refresh
-                </button>
+                <div className="flex gap-2" style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleAddConnector}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <Plus size={16} />
+                        Add Connector
+                    </button>
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => fetchConnectors(true)}
+                        disabled={refreshing}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    >
+                        <RefreshCw size={16} className={refreshing ? 'spin' : ''} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {error && (
