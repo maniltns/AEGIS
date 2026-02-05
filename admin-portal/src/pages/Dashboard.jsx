@@ -101,6 +101,35 @@ function Dashboard() {
         }
     }
 
+    const toggleKillSwitch = async () => {
+        if (!confirm('Are you sure you want to toggle the system kill switch?')) return
+
+        try {
+            // If kill switch is ACTIVE (System Disabled), we want to ENABLE system
+            // If kill switch is INACTIVE (System Enabled), we want to DISABLE system
+            const action = status.kill_switch_active ? 'enable' : 'disable'
+
+            const response = await fetch('/api/governance/killswitch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: action,
+                    reason: 'Manual toggle from Dashboard',
+                    operator: 'admin@aegis.local'
+                })
+            })
+
+            if (response.ok) {
+                fetchStatus()
+            } else {
+                alert('Failed to toggle kill switch')
+            }
+        } catch (err) {
+            console.error(err)
+            alert('Error toggling kill switch')
+        }
+    }
+
     const formatTime = (iso) => {
         const date = new Date(iso)
         return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -114,6 +143,15 @@ function Dashboard() {
                     <p className="page-subtitle">System overview and real-time monitoring</p>
                 </div>
                 <div className="flex items-center gap-4">
+                    <button
+                        className={`btn ${status.kill_switch_active ? 'btn-success' : 'btn-danger'}`}
+                        onClick={toggleKillSwitch}
+                        style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                        <Zap size={16} />
+                        {status.kill_switch_active ? 'Enable System' : 'Disable System'}
+                    </button>
+
                     <div className={`badge ${status.operational ? 'badge-success' : 'badge-danger'}`}>
                         <span style={{
                             width: '8px',
