@@ -169,13 +169,13 @@ async def get_system_status():
     except:
         operational = False
     
-    # Get kill switch state (true = system enabled)
+    # Get kill switch state (true = system enabled, so active = False)
     kill_switch_raw = redis_client.get("gov:killswitch")
-    kill_switch_active = kill_switch_raw != b"true" if kill_switch_raw else False
+    kill_switch_active = str(kill_switch_raw).lower() != "true" if kill_switch_raw else False
     
     # Get operating mode
     mode = redis_client.get("gov:mode")
-    mode = mode.decode() if mode else "assist"
+    mode = mode if mode else "assist"
     
     # Get today's stats
     today = datetime.utcnow().strftime("%Y%m%d")
@@ -446,6 +446,21 @@ async def get_thresholds():
     return {
         "thresholds": {k: int(v) for k, v in thresholds.items()}
     }
+
+
+class ThresholdPayload(BaseModel):
+    """Threshold configuration payload."""
+    thresholds: Dict[str, int]
+
+
+@app.post("/governance/thresholds")
+async def set_thresholds(payload: ThresholdPayload):
+    """Set confidence thresholds."""
+    for key, value in payload.thresholds.items():
+        if key in ["auto_assign", "auto_categorize", "auto_remediate"]:
+            redis_client.set(f"gov:threshold:{key}", str(value))
+    
+    return {"success": True, "thresholds": payload.thresholds}
 
 
 # =============================================================================

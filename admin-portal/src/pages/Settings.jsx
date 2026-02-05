@@ -48,6 +48,13 @@ function Settings() {
                 body: JSON.stringify({ mode: settings.mode, reason: 'Updated from admin portal' })
             })
 
+            // Save thresholds
+            await fetch('/api/governance/thresholds', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ thresholds: settings.thresholds })
+            })
+
             setSaved(true)
             setTimeout(() => setSaved(false), 3000)
         } catch (err) {
