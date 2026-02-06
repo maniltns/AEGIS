@@ -359,24 +359,14 @@ async def send_enhanced_triage_card(
                 "targets": [{"os": "default", "uri": incident_link}]
             },
             {
-                "@type": "HttpPOST",
+                "@type": "OpenUri",
                 "name": "👍 Helpful",
-                "target": f"{api_url}/feedback/{triage_id}",
-                "body": json.dumps({
-                    "feedback": "positive",
-                    "incident_number": incident_number
-                }),
-                "headers": [{"name": "Content-Type", "value": "application/json"}]
+                "targets": [{"os": "default", "uri": f"{api_url}/feedback/{triage_id}?feedback=positive&incident={incident_number}&user=Teams"}]
             },
             {
-                "@type": "HttpPOST",
+                "@type": "OpenUri",
                 "name": "👎 Not Helpful",
-                "target": f"{api_url}/feedback/{triage_id}",
-                "body": json.dumps({
-                    "feedback": "negative",
-                    "incident_number": incident_number
-                }),
-                "headers": [{"name": "Content-Type", "value": "application/json"}]
+                "targets": [{"os": "default", "uri": f"{api_url}/feedback/{triage_id}?feedback=negative&incident={incident_number}&user=Teams"}]
             }
         ]
     }

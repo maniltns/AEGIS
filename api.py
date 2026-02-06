@@ -14,6 +14,7 @@ from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Header
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis
@@ -252,6 +253,60 @@ async def submit_feedback(triage_id: str, payload: FeedbackPayload):
     logger.info(f"Feedback received for {triage_id}: {payload.feedback}")
     
     return {"success": True, "message": "Feedback recorded"}
+
+
+@app.get("/feedback/{triage_id}", response_class=HTMLResponse)
+async def submit_feedback_get(triage_id: str, feedback: str, incident: str, user: str = "Teams User"):
+    """Handle feedback via browser link (GET)."""
+    
+    # Create payload compatible with logic
+    payload = FeedbackPayload(feedback=feedback, incident_number=incident, user=user)
+    
+    # Store feedback (Copied logic for reliability)
+    result_raw = redis_client.get(f"triage:result:{triage_id}")
+    result = json.loads(result_raw) if result_raw else {}
+    
+    feedback_data = {
+        "triage_id": triage_id,
+        "incident_number": payload.incident_number,
+        "feedback": payload.feedback,
+        "classification": result.get("classification", {}).get("category", "Unknown"),
+        "recommendation": result.get("classification", {}).get("assignment_group", "Unknown"),
+        "confidence": result.get("confidence", 0),
+        "feedback_time": datetime.utcnow().isoformat(),
+        "feedback_by": payload.user
+    }
+    
+    redis_client.set(f"feedback:{triage_id}", json.dumps(feedback_data))
+    redis_client.expire(f"feedback:{triage_id}", 86400 * 90)
+    
+    if payload.feedback == "positive":
+        redis_client.incr("stats:feedback:positive")
+    else:
+        redis_client.incr("stats:feedback:negative")
+    
+    today = datetime.utcnow().strftime("%Y%m%d")
+    redis_client.incr(f"stats:feedback:daily:{today}:{payload.feedback}")
+    
+    redis_client.lpush("feedback:history", json.dumps(feedback_data))
+    redis_client.ltrim("feedback:history", 0, 999)
+    
+    logger.info(f"Feedback (GET) received for {triage_id}: {payload.feedback}")
+    
+    color = "#22c55e" if feedback == "positive" else "#ef4444"
+    message = "Thanks for your feedback!" if feedback == "positive" else "Thanks, we'll improve."
+    
+    return f"""
+    <html>
+        <body style="font-family: sans-serif; text-align: center; padding: 50px; background-color: #f9fafb;">
+            <div style="background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 400px; margin: 0 auto;">
+                <h1 style="color: {color}; margin-bottom: 20px;">Feedback Recorded</h1>
+                <p style="font-size: 18px; color: #374151;">{message}</p>
+                <p style="color: #6b7280; margin-top: 30px; font-size: 14px;">You can close this window.</p>
+            </div>
+        </body>
+    </html>
+    """
 
 
 @app.get("/feedback/stats")
@@ -529,6 +584,29 @@ async def get_killswitch_audit():
         "audit_entries": [json.loads(log) for log in logs],
         "count": len(logs)
     }
+
+
+# =============================================================================
+# RAG ENDPOINTS
+# =============================================================================
+
+@app.post("/rag/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Proxy upload to RAG service."""
+    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8000")
+    
+    async with httpx.AsyncClient() as client:
+        # Read file content
+        content = await file.read()
+        files = {"file": (file.filename, content, file.content_type)}
+        
+        try:
+            response = await client.post(f"{rag_url}/upload", files=files)
+            return response.json()
+        except Exception as e:
+            logger.error(f"RAG upload failed: {e}")
+            raise HTTPException(status_code=500, detail=f"RAG service error: {str(e)}")
+
 
 
 # =============================================================================

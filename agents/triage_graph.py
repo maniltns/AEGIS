@@ -366,14 +366,15 @@ def build_work_notes(state: TriageState) -> str:
     notes = [
         f"🛡️ AEGIS Triage (v2.1)",
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━",
-        f"**Category:** {classification.get('category', 'N/A')} > {classification.get('subcategory', 'N/A')}",
-        f"**Priority:** P{classification.get('priority', '3')}",
-        f"**Assignment:** {classification.get('assignment_group', 'N/A')}",
-        f"**Confidence:** {state.get('confidence', 0)*100:.0f}%",
+        f"Category:     {classification.get('category', 'N/A')} > {classification.get('subcategory', 'N/A')}",
+        f"Priority:     P{classification.get('priority', '3')}",
+        f"Assignment:   {classification.get('assignment_group', 'N/A')}",
+        f"Confidence:   {state.get('confidence', 0)*100:.0f}%",
         f"",
-        f"**Reasoning:** {state.get('reasoning', 'N/A')}",
+        f"[Reasoning]",
+        f"{state.get('reasoning', 'N/A')}",
         f"",
-        f"**KB Articles:**"
+        f"[KB Articles]"
     ]
     
     for kb in state.get("kb_articles", [])[:3]:
@@ -381,7 +382,7 @@ def build_work_notes(state: TriageState) -> str:
     
     notes.extend([
         f"",
-        f"**Actions Taken:**"
+        f"[Actions Taken]"
     ])
     
     for action in state.get("actions_taken", []):
