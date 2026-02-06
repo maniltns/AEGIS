@@ -304,7 +304,7 @@ async def send_enhanced_triage_card(
                 kb_lines.append(f"{i}. [{kb_number}]({snow_url}/kb_view.do?sys_kb_id={kb.get('sys_id', '')}) - {kb_title}")
             else:
                 kb_lines.append(f"{i}. {kb_number} - {kb_title}")
-        kb_text = "\\n".join(kb_lines)
+        kb_text = "\n".join(kb_lines)
     
     # Parse reasoning into sections
     assessment = reasoning[:200] if reasoning else "No assessment available"
@@ -343,7 +343,7 @@ async def send_enhanced_triage_card(
             },
             {
                 "activityTitle": "📋 Analysis",
-                "text": f"• **Assessment:** {assessment}\\n\\n• **Root Cause:** {root_cause}\\n\\n• **Action:** {action if action else assignment_group}",
+                "text": f"• **Assessment:** {assessment}\n\n• **Root Cause:** {root_cause}\n\n• **Action:** {action if action else assignment_group}",
                 "markdown": True
             },
             {
