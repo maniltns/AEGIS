@@ -31,10 +31,19 @@ logger = logging.getLogger("aegis.api")
 
 # Configure persistent file logging
 log_dir = "/var/log/aegis"
-os.makedirs(log_dir, exist_ok=True)
-file_handler = logging.FileHandler(os.path.join(log_dir, "api.log"))
-file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
-logger.addHandler(file_handler)
+try:
+    os.makedirs(log_dir, exist_ok=True)
+    file_path = os.path.join(log_dir, "api.log")
+    # Check if we can write
+    if not os.access(log_dir, os.W_OK):
+        print(f"WARNING: No write permission for {log_dir}, falling back to console logging.")
+    else:
+        file_handler = logging.FileHandler(file_path)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        logger.addHandler(file_handler)
+        logger.info(f"Logging initialized to {file_path}")
+except Exception as e:
+    print(f"WARNING: Failed to setup file logging: {e}")
 
 # Redis client for governance and queue
 redis_client = redis.Redis(

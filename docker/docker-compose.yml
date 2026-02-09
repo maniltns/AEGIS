@@ -92,7 +92,32 @@ services:
     deploy:
       replicas: 2
     volumes:
-      - /var/log/aegis:/var/log/aegis
+      - ../logs:/var/log/aegis
+
+  # ===========================================================================
+  # Scheduler Service (Weekly Jobs)
+  # ===========================================================================
+  aegis-scheduler:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    command: python workers/scheduler.py
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - SERVICENOW_INSTANCE=${SERVICENOW_INSTANCE}
+      - SERVICENOW_USER=${SERVICENOW_USER}
+      - SERVICENOW_PASSWORD=${SERVICENOW_PASSWORD}
+      - RAG_SERVICE_URL=http://rag-service:8000
+    depends_on:
+      - redis
+      - rag-service
+    networks:
+      - aegis-network
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    volumes:
+      - ../logs:/var/log/aegis
 
   # ===========================================================================
   # RAG Service (FastAPI + Redis + Bedrock)

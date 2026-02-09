@@ -1,0 +1,44 @@
+# AEGIS Tool Registry
+# ===================
+# Defines allowed actions, their risk levels, and required governance.
+
+- name: restart_windows_service
+  description: Restarts a Windows Service on a target EC2 instance via SSM.
+  parameters:
+    target_id: 
+      type: string
+      description: The AWS Instance ID (starts with i-)
+      pattern: "^i-[a-z0-9]{8,17}$"
+    service_name: 
+      type: string
+      description: The exact name of the service (e.g., W3SVC)
+  risk_level: medium
+  required_role: L2_Server_Admin
+  standard_change_template: CHG00345
+  handler: aws_ssm
+
+- name: clear_iis_logs
+  description: Clears IIS logs on a target server to free up space.
+  parameters:
+    target_id:
+      type: string
+      description: The AWS Instance ID
+    days_to_keep:
+      type: integer
+      description: Number of days of logs to keep
+      default: 30
+  risk_level: low
+  required_role: L2_Server_Admin
+  standard_change_template: CHG00346
+  handler: aws_ssm
+
+- name: check_disk_space
+  description: Checks disk space on a target server.
+  parameters:
+    target_id:
+      type: string
+      description: The AWS Instance ID
+  risk_level: low
+  required_role: L1_Support
+  standard_change_template: null # Read-only action, no CHG needed
+  handler: aws_ssm
