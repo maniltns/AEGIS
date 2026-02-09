@@ -40,6 +40,8 @@ services:
     depends_on:
       - redis
       - rag-service
+    volumes:
+      - ../logs:/var/log/aegis
     networks:
       - aegis-network
     restart: unless-stopped

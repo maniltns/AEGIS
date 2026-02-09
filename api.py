@@ -29,6 +29,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("aegis.api")
 
+# Configure persistent file logging
+log_dir = "/var/log/aegis"
+os.makedirs(log_dir, exist_ok=True)
+file_handler = logging.FileHandler(os.path.join(log_dir, "api.log"))
+file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+logger.addHandler(file_handler)
+
 # Redis client for governance and queue
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "localhost"),
@@ -252,6 +259,14 @@ async def submit_feedback(triage_id: str, payload: FeedbackPayload):
     
     logger.info(f"Feedback received for {triage_id}: {payload.feedback}")
     
+    # DEBUG: Log current stats
+    try:
+        pos = redis_client.get("stats:feedback:positive") or 0
+        neg = redis_client.get("stats:feedback:negative") or 0
+        logger.info(f"Feedback stats updated: Positive={pos}, Negative={neg}")
+    except Exception as e:
+        logger.error(f"Failed to log feedback stats: {e}")
+    
     return {"success": True, "message": "Feedback recorded"}
 
 
@@ -292,6 +307,14 @@ async def submit_feedback_get(triage_id: str, feedback: str, incident: str, user
     redis_client.ltrim("feedback:history", 0, 999)
     
     logger.info(f"Feedback (GET) received for {triage_id}: {payload.feedback}")
+    
+    # DEBUG: Log current stats
+    try:
+        pos = redis_client.get("stats:feedback:positive") or 0
+        neg = redis_client.get("stats:feedback:negative") or 0
+        logger.info(f"Feedback stats updated: Positive={pos}, Negative={neg}")
+    except Exception as e:
+        logger.error(f"Failed to log feedback stats: {e}")
     
     color = "#22c55e" if feedback == "positive" else "#ef4444"
     message = "Thanks for your feedback!" if feedback == "positive" else "Thanks, we'll improve."

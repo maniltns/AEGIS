@@ -20,6 +20,7 @@ redis>=5.0.0
 python-multipart==0.0.6
 httpx==0.26.0
 aiofiles==23.2.1
+pypdf==3.17.4
 
 # Utilities
 python-dotenv==1.0.0

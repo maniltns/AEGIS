@@ -24,7 +24,8 @@ from contextlib import asynccontextmanager
 
 import boto3
 import redis
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import logging
@@ -801,8 +802,115 @@ async def ingest_document(doc: DocumentIngest):
     if not rag_service:
         raise HTTPException(status_code=503, detail="RAG service not initialized")
     
-    logger.info(f"Ingesting {doc.document_type}: {doc.document_id}")
-    return rag_service.ingest_document(doc)
+    try:
+        return rag_service.ingest_document(doc)
+    except Exception as e:
+        logger.error(f"Ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    collection: str = Form("kb"),
+    chunk_size: int = Form(512),
+    chunk_overlap: int = Form(50)
+):
+    """
+    📤 Upload and ingest a file directly.
+    Supports: PDF, TXT, MD, JSON
+    """
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not initialized")
+    
+    filename = file.filename
+    content = ""
+    
+    logger.info(f"Receiving upload: {filename} for {collection}")
+    
+    try:
+        # 1. Extract content based on file type
+        if filename.endswith(".pdf"):
+            import pypdf
+            import io
+            
+            # Read file into memory
+            file_content = await file.read()
+            pdf_file = io.BytesIO(file_content)
+            reader = pypdf.PdfReader(pdf_file)
+            
+            text_parts = []
+            for page in reader.pages:
+                text_parts.append(page.extract_text())
+            content = "\n".join(text_parts)
+            
+        elif filename.endswith(".json"):
+            file_content = await file.read()
+            json_data = json.loads(file_content.decode())
+            # Handle various JSON formats
+            if isinstance(json_data, list):
+                content = "\n\n".join([json.dumps(item) for item in json_data])
+            else:
+                content = json.dumps(json_data, indent=2)
+                
+        else:
+            # Assume text/md
+            file_content = await file.read()
+            content = file_content.decode("utf-8", errors="ignore")
+        
+        if not content.strip():
+            raise ValueError("File is empty or content could not be extracted")
+            
+        # 2. Key for document
+        doc_id = f"DOC_{hashlib.md5(filename.encode()).hexdigest()[:8]}"
+        
+        # 3. Simple chunking (naive implementation)
+        # In a real scenario, use LangChain's RecursiveCharacterTextSplitter
+        words = content.split()
+        chunks = []
+        current_chunk = []
+        current_len = 0
+        
+        for word in words:
+            current_chunk.append(word)
+            current_len += 1
+            if current_len >= chunk_size:
+                chunks.append(" ".join(current_chunk))
+                # Overlap logic (simple rewind)
+                overlap_words = current_chunk[-chunk_overlap:] if chunk_overlap > 0 else []
+                current_chunk = list(overlap_words)
+                current_len = len(current_chunk)
+        
+        if current_chunk:
+            chunks.append(" ".join(current_chunk))
+            
+        # 4. Ingest chunks
+        chunks_created = 0
+        for i, chunk_text in enumerate(chunks):
+            chunk_doc_id = f"{doc_id}_part{i+1}"
+            
+            ingest_doc = DocumentIngest(
+                document_type=collection if collection in ["kb", "ticket", "sop"] else "kb",
+                document_id=chunk_doc_id,
+                title=f"{filename} (Part {i+1})",
+                content=chunk_text,
+                metadata={"source_file": filename, "chunk_index": i}
+            )
+            
+            rag_service.ingest_document(ingest_doc)
+            chunks_created += 1
+            
+        return {
+            "success": True,
+            "filename": filename,
+            "chunks_created": chunks_created,
+            "doc_id": doc_id,
+            "preview": chunks[:3]
+        }
+        
+    except Exception as e:
+        logger.error(f"Upload processing failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/v1/batch-ingest")
