@@ -13,11 +13,12 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis
+import httpx
 import uvicorn
 
 from utils.pii_scrubber import scrub_dict
@@ -229,6 +230,42 @@ class FeedbackPayload(BaseModel):
     user: Optional[str] = Field(None, description="User who gave feedback")
 
 
+# IMPORTANT: Static routes (/feedback/stats, /feedback/details) MUST be defined
+# BEFORE dynamic routes (/feedback/{triage_id}) to avoid path parameter shadowing.
+
+@app.get("/feedback/stats")
+async def get_feedback_stats():
+    """Get feedback statistics for dashboard."""
+    positive = redis_client.get("stats:feedback:positive")
+    negative = redis_client.get("stats:feedback:negative")
+    
+    pos = int(positive) if positive else 0
+    neg = int(negative) if negative else 0
+    total = pos + neg
+    
+    return {
+        "positive": pos,
+        "negative": neg,
+        "total": total,
+        "approval_rate": round(pos / total * 100, 1) if total > 0 else 0
+    }
+
+
+@app.get("/feedback/details")
+async def get_feedback_details(limit: int = 20):
+    """Get recent feedback for drill-down."""
+    raw_feedback = redis_client.lrange("feedback:history", 0, limit - 1)
+    
+    feedback_list = []
+    for item in raw_feedback:
+        try:
+            feedback_list.append(json.loads(item))
+        except:
+            pass
+    
+    return {"feedback": feedback_list}
+
+
 @app.post("/feedback/{triage_id}")
 async def submit_feedback(triage_id: str, payload: FeedbackPayload):
     """Store feedback from Teams card thumbs up/down."""
@@ -341,36 +378,8 @@ async def submit_feedback_get(triage_id: str, feedback: str, incident: str, user
     """
 
 
-@app.get("/feedback/stats")
-async def get_feedback_stats():
-    """Get feedback statistics for dashboard."""
-    positive = redis_client.get("stats:feedback:positive")
-    negative = redis_client.get("stats:feedback:negative")
-    
-    pos = int(positive) if positive else 0
-    neg = int(negative) if negative else 0
-    total = pos + neg
-    
-    return {
-        "positive": pos,
-        "negative": neg,
-        "total": total,
-        "approval_rate": round(pos / total * 100, 1) if total > 0 else 0
-    }
-
-
-@app.get("/feedback/details")
-async def get_feedback_details(limit: int = 20):
-    """Get recent feedback for drill-down."""
-    raw_feedback = redis_client.lrange("feedback:history", 0, limit - 1)
-    
-    feedback_list = []
-    for item in raw_feedback:
-        try:
-            feedback_list.append(json.loads(item))
-        except:
-            pass
-    return {"feedback": feedback_list, "count": len(feedback_list)}
+# NOTE: /feedback/stats and /feedback/details have been moved ABOVE
+# /feedback/{triage_id} to avoid route shadowing. See the definition above.
 
 
 # =============================================================================
@@ -623,21 +632,58 @@ async def get_killswitch_audit():
 # =============================================================================
 
 @app.post("/rag/upload")
-async def upload_document(file: UploadFile = File(...)):
-    """Proxy upload to RAG service."""
+async def upload_document(
+    file: UploadFile = File(...),
+    collection: str = Form("kb"),
+    chunk_size: int = Form(512),
+    chunk_overlap: int = Form(50)
+):
+    """Proxy upload to RAG service with all form fields."""
     rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8000")
     
-    async with httpx.AsyncClient() as client:
-        # Read file content
+    async with httpx.AsyncClient(timeout=120.0) as client:
         content = await file.read()
         files = {"file": (file.filename, content, file.content_type)}
+        data = {
+            "collection": collection,
+            "chunk_size": str(chunk_size),
+            "chunk_overlap": str(chunk_overlap)
+        }
         
         try:
-            response = await client.post(f"{rag_url}/upload", files=files)
+            response = await client.post(f"{rag_url}/upload", files=files, data=data)
             return response.json()
         except Exception as e:
             logger.error(f"RAG upload failed: {e}")
             raise HTTPException(status_code=500, detail=f"RAG service error: {str(e)}")
+
+
+@app.get("/rag/stats")
+async def get_rag_stats():
+    """Proxy stats request to RAG service."""
+    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8000")
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.get(f"{rag_url}/stats")
+            return response.json()
+        except Exception as e:
+            logger.error(f"RAG stats failed: {e}")
+            return {"collections": {"idx:kb": 0, "idx:tickets": 0, "idx:sop": 0}}
+
+
+@app.post("/rag/search")
+async def search_rag(payload: Dict[str, Any]):
+    """Proxy search request to RAG service."""
+    rag_url = os.getenv("RAG_SERVICE_URL", "http://rag-service:8000")
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(f"{rag_url}/search", json=payload)
+            return response.json()
+        except Exception as e:
+            logger.error(f"RAG search failed: {e}")
+            return {"results": []}
 
 
 
