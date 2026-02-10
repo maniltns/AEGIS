@@ -75,14 +75,19 @@ function KnowledgeBase() {
 
             if (response.ok) {
                 const data = await response.json()
-                setUploadStatus({ status: 'success', message: `Uploaded ${data.chunks_created} chunks` })
+                setUploadStatus({ status: 'success', message: `Uploaded ${data.chunks_created || 0} chunks` })
                 setChunkPreview(data.preview || [])
                 fetchCollectionStats()
             } else {
-                setUploadStatus({ status: 'error', message: 'Upload failed' })
+                let errMsg = 'Upload failed'
+                try {
+                    const errData = await response.json()
+                    errMsg = errData.detail || errData.error || errMsg
+                } catch { }
+                setUploadStatus({ status: 'error', message: `${errMsg} (${response.status})` })
             }
         } catch (err) {
-            setUploadStatus({ status: 'error', message: err.message })
+            setUploadStatus({ status: 'error', message: `Network error: ${err.message}` })
         }
     }
 

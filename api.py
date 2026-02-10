@@ -58,6 +58,25 @@ redis_client = redis.Redis(
 TRIAGE_QUEUE = "aegis:queue:triage"
 
 
+def log_activity(agent: str, action: str, incident: str = "SYSTEM", level: str = "info", details: str = ""):
+    """Write an activity log entry to Redis for the Logs page."""
+    try:
+        import uuid
+        log_entry = {
+            "id": str(uuid.uuid4())[:8],
+            "timestamp": datetime.utcnow().isoformat(),
+            "agent": agent,
+            "incident": incident,
+            "action": action,
+            "level": level,
+            "details": details
+        }
+        redis_client.lpush("logs:activity", json.dumps(log_entry))
+        redis_client.ltrim("logs:activity", 0, 999)
+    except Exception as e:
+        logger.warning(f"Failed to write activity log: {e}")
+
+
 # =============================================================================
 # STARTUP / SHUTDOWN
 # =============================================================================
@@ -78,6 +97,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"📋 Queue status: {queue_len} items pending")
     
     logger.info("✅ AEGIS API Server ready")
+    log_activity("AEGIS-API", "System started", level="info", details=f"Queue: {queue_len} pending")
     yield
     logger.info("🛡️ AEGIS API Server shutting down...")
 
@@ -304,6 +324,7 @@ async def submit_feedback(triage_id: str, payload: FeedbackPayload):
     redis_client.ltrim("feedback:history", 0, 999)  # Keep last 1000
     
     logger.info(f"Feedback received for {triage_id}: {payload.feedback}")
+    log_activity("Feedback", f"{payload.feedback} feedback", incident=payload.incident_number, level="info")
     
     # DEBUG: Log current stats
     try:
@@ -421,6 +442,7 @@ async def receive_incident(incident: IncidentPayload):
     # redis_client.incr(f"stats:processed:{today}")
     
     logger.info(f"Queued {incident.number} at position {queue_position}")
+    log_activity("Webhook", "Incident queued for triage", incident=incident.number, level="info", details=incident.short_description[:100])
     
     return TriageResponse(
         status="queued",
@@ -652,9 +674,12 @@ async def upload_document(
         
         try:
             response = await client.post(f"{rag_url}/upload", files=files, data=data)
-            return response.json()
+            result = response.json()
+            log_activity("RAG-Upload", f"Uploaded {file.filename} to {collection}", level="info", details=f"Status: {response.status_code}")
+            return result
         except Exception as e:
             logger.error(f"RAG upload failed: {e}")
+            log_activity("RAG-Upload", f"Upload failed: {file.filename}", level="error", details=str(e))
             raise HTTPException(status_code=500, detail=f"RAG service error: {str(e)}")
 
 
